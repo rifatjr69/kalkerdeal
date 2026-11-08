@@ -128,7 +128,7 @@ const AppContent: React.FC = () => {
           slug: p.slug,
           price: p.price,
           old_price: p.oldPrice,
-          discount_percent: p.discountPercent,
+          discount_percent: p.discountPercent || (p.oldPrice && p.oldPrice > p.price ? Math.round(((p.oldPrice - p.price) / p.oldPrice) * 100) : undefined),
           rating: p.rating,
           review_count: p.reviewCount,
           stock: p.stock,

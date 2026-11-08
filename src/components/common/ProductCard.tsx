@@ -19,7 +19,6 @@ export const ProductCard: React.FC<ProductCardProps> = ({
     addToCart,
     isInWishlist,
     toggleWishlist,
-    openQuickView
   } = useStore();
 
   const [isHovered, setIsHovered] = useState(false);
@@ -29,7 +28,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
     navigateTo(`/product/${product.slug}`);
   };
 
-  const handleDirectOrder = (e: React.MouseEvent) => {
+  const handleOrderNow = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (!product.inStock) return;
     addToCart(product, 1);
@@ -41,124 +40,147 @@ export const ProductCard: React.FC<ProductCardProps> = ({
     toggleWishlist(product.id);
   };
 
+  // Calculate discount percentage if old price exists and percent is not set
+  const discountPercent = product.discountPercent || (product.oldPrice && product.oldPrice > product.price
+    ? Math.round(((product.oldPrice - product.price) / product.oldPrice) * 100)
+    : undefined);
+
+  // Soft circle color based on product ID or index for screenshot look
+  const getCircleBg = () => {
+    if (product.id.includes('1') || product.id.includes('5')) return 'bg-[#E0F2FE]/60';
+    if (product.id.includes('2') || product.id.includes('6')) return 'bg-[#EEF2FF]/70';
+    if (product.id.includes('3') || product.id.includes('7')) return 'bg-[#FEF3C7]/60';
+    if (product.id.includes('4') || product.id.includes('8')) return 'bg-[#DCFCE7]/60';
+    return 'bg-[#F1F5F9]';
+  };
 
   return (
     <div
       onClick={handleCardClick}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
-      className="group relative bg-white border border-slate-50 rounded-2xl p-2 sm:p-3 flex flex-col justify-between transition-all duration-300 hover:shadow-[0_12px_30px_rgba(0,0,0,0.06)] cursor-pointer h-full"
+      className="group relative bg-white border border-slate-100 rounded-2xl p-2.5 sm:p-3 flex flex-col justify-between transition-all duration-300 hover:shadow-lg cursor-pointer h-full"
     >
       {/* Top Image Section */}
-      <div className="relative w-full aspect-square flex items-center justify-center mb-2.5 overflow-hidden rounded-xl bg-slate-50/50">
-        {/* Circular background circle */}
-        <div className="absolute inset-1.5 sm:inset-3 rounded-full bg-[#E2E8F0]/40 transition-transform duration-500 group-hover:scale-110" />
+      <div className="relative w-full aspect-square flex items-center justify-center mb-2 overflow-hidden rounded-xl bg-slate-50/40">
+        {/* Circular background circle matching screenshot */}
+        <div className={`absolute inset-2 sm:inset-3 rounded-full ${getCircleBg()} transition-transform duration-500 group-hover:scale-110`} />
+
+        {/* Top-left Promo Ribbon (like "dl / 3, FREE DELIVE...") */}
+        {product.promoBadge ? (
+          <div className="absolute top-1 left-0 z-20 bg-gradient-to-r from-[#FF2B74] to-[#E11D48] text-white text-[9px] font-bold px-2 py-0.5 rounded-r-full shadow-xs max-w-[125px] truncate">
+            {product.promoBadge}
+          </div>
+        ) : discountPercent && discountPercent >= 20 ? (
+          <div className="absolute top-1 left-0 z-20 bg-gradient-to-r from-[#FF2B74] to-[#E11D48] text-white text-[9px] font-bold px-2 py-0.5 rounded-r-full shadow-xs">
+            SAVE {discountPercent}%
+          </div>
+        ) : null}
+
+        {/* Wishlist Button - Top Right with circle white background matching screenshot */}
+        <div className="absolute top-1.5 right-1.5 z-20">
+          <button
+            type="button"
+            onClick={handleWishlistClick}
+            aria-label="Wishlist"
+            className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-white shadow-xs border border-slate-100 flex items-center justify-center text-slate-400 hover:text-[#FF2B74] transition-colors"
+          >
+            <Heart className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${inWishlist ? 'fill-[#FF2B74] text-[#FF2B74]' : ''}`} />
+          </button>
+        </div>
 
         {/* Product Image */}
         <img
           src={isHovered && product.hoverImage ? product.hoverImage : product.image}
           alt={product.title}
           loading="lazy"
-          className={`relative z-10 w-[90%] h-[90%] object-contain transition-transform duration-500 group-hover:scale-105 ${
+          className={`relative z-10 w-[84%] h-[84%] object-contain transition-transform duration-500 group-hover:scale-105 ${
             !product.inStock ? 'opacity-50 grayscale' : ''
           }`}
         />
 
         {/* Out of Stock Overlay */}
         {!product.inStock && (
-          <div className="absolute inset-0 z-20 bg-white/70 backdrop-blur-[1px] flex items-center justify-center">
+          <div className="absolute inset-0 z-20 bg-white/75 backdrop-blur-[1px] flex items-center justify-center">
             <span className="bg-slate-900 text-white text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider">
               Out of stock
             </span>
           </div>
         )}
 
-        {/* Rating Badge - Bottom Left of Image Area */}
+        {/* Rating Badge - Bottom Left of Image matching screenshot */}
         {product.rating && (
-          <div className="absolute bottom-1.5 left-1.5 z-20 flex items-center gap-0.5 bg-[#F97316] text-white text-[9px] sm:text-[11px] font-bold px-1.5 py-0.5 rounded shadow-sm">
-            <span>{product.rating.toFixed(1)}</span>
-            <span>★</span>
+          <div className="absolute bottom-1 left-1 z-20 flex items-center rounded overflow-hidden shadow-xs border border-amber-500/20">
+            <div className="bg-[#F97316] text-white text-[10px] font-bold px-1.5 py-0.5 flex items-center gap-0.5">
+              <span>{product.rating.toFixed(1)}</span>
+              <span className="text-[9px]">★</span>
+            </div>
             {product.reviewCount !== undefined && (
-              <span className="opacity-90 ml-0.5">{product.reviewCount}</span>
+              <div className="bg-white text-slate-700 text-[10px] font-bold px-1 py-0.5">
+                {product.reviewCount}
+              </div>
             )}
           </div>
         )}
-
-        {/* Wishlist Button - Top Right of Image Area */}
-        <div className="absolute top-1.5 right-1.5 z-20">
-          <button
-            type="button"
-            onClick={handleWishlistClick}
-            className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center transition-colors shadow-sm bg-white/90 ${
-              inWishlist ? 'text-[#FF2B74]' : 'text-slate-300 hover:text-[#FF2B74]'
-            }`}
-          >
-            <Heart className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${inWishlist ? 'fill-current' : ''}`} />
-          </button>
-        </div>
       </div>
 
-      {/* Product Info */}
-      <div className="flex-1 flex flex-col px-0.5">
-        {/* Badges Row */}
-        <div className="flex items-center gap-1 mb-2">
-          {product.isFast && (
-            <span className="bg-[#1E40AF] text-white text-[8px] sm:text-[10px] font-black px-1.5 py-0.5 rounded flex items-center gap-0.5 uppercase tracking-tighter">
-              <Zap className="w-2 h-2 fill-current" /> FAST
-            </span>
-          )}
-          {product.isVerified && (
-            <span className="bg-[#1E3A8A] text-white text-[8px] sm:text-[10px] font-black px-1.5 py-0.5 rounded flex items-center gap-0.5 uppercase tracking-tighter">
-              <Check className="w-2 h-2" /> VERIFIED
-            </span>
-          )}
+      {/* Product Info Section */}
+      <div className="flex-1 flex flex-col justify-between">
+        {/* Title line with inline badges matching screenshot */}
+        <div className="mb-1">
+          <div className="flex items-center gap-1.5 flex-wrap">
+            {product.isFast && (
+              <span className="inline-flex items-center gap-0.5 bg-[#FF2B74] text-white text-[9px] font-extrabold px-1.5 py-0.2 rounded uppercase tracking-tighter shrink-0">
+                <Zap className="w-2.5 h-2.5 fill-current" /> FAST
+              </span>
+            )}
+            {product.isVerified && (
+              <span className="inline-flex items-center gap-0.5 bg-[#1E3A8A] text-white text-[9px] font-bold px-1.5 py-0.2 rounded shrink-0">
+                <Check className="w-2.5 h-2.5 stroke-[3]" /> Verified
+              </span>
+            )}
+            <h3 className="text-[12px] sm:text-[13px] font-semibold text-slate-800 line-clamp-1 leading-snug">
+              {product.title}
+            </h3>
+          </div>
         </div>
 
-        <h3 className="text-[12px] sm:text-[14px] font-bold text-slate-800 line-clamp-1 leading-tight mb-1.5">
-          {product.title}
-        </h3>
-
-        <div className="mt-auto">
-          {/* Price Block */}
-          <div className="flex flex-col mb-2">
-            <div className="flex items-baseline gap-1.5">
-              <span className="text-[16px] sm:text-[19px] font-black text-[#E11D48] tabular-nums">
-                ৳{product.price.toLocaleString()}
+        {/* Price Row: Discount % + Old Price + New Price */}
+        <div className="mt-1">
+          <div className="flex items-center gap-1.5 flex-wrap">
+            {discountPercent && discountPercent > 0 && (
+              <span className="text-[11px] sm:text-[12px] font-bold text-[#FF2B74] flex items-center">
+                ↓{discountPercent}%
               </span>
-              {product.oldPrice && (
-                <span className="text-[11px] sm:text-[13px] text-slate-400 line-through tabular-nums">
-                  ৳{product.oldPrice.toLocaleString()}
-                </span>
-              )}
-            </div>
+            )}
+            {product.oldPrice && product.oldPrice > product.price && (
+              <span className="text-[10px] sm:text-[11px] text-slate-400 line-through tabular-nums">
+                ৳{product.oldPrice.toLocaleString()}
+              </span>
+            )}
+            <span className="text-[14px] sm:text-[16px] font-black text-[#D6175F] tabular-nums">
+              ৳{product.price.toLocaleString()}
+            </span>
           </div>
 
-          {/* Progress Bar (Flash Sale specific) */}
-          {showSoldProgress && product.soldCount !== undefined && (
-            <div className="mb-2.5">
-              <div className="w-full bg-slate-100 rounded-full h-[6px] overflow-hidden mb-1">
-                <div
-                  className="bg-[#0F172A] h-full rounded-full"
-                  style={{ width: `${Math.min(100, (product.soldCount / 300) * 100)}%` }}
-                />
-              </div>
-              <p className="text-[11px] sm:text-[12px] text-slate-500 font-bold leading-none">
-                {product.soldCount} items sold
-              </p>
-            </div>
-          )}
+          {/* FREE delivery indicator matching screenshot */}
+          <p className="text-[10px] sm:text-[11px] text-slate-400 font-medium mt-0.5">
+            FREE delivery
+          </p>
 
-          {/* Order Now Button */}
-          <div className="mt-1">
+          {/* Order Now Button (Light Cyan/Teal background with Darker Cyan text) matching screenshot */}
+          <div className="mt-2.5">
             <button
               type="button"
-              onClick={handleDirectOrder}
+              onClick={handleOrderNow}
               disabled={!product.inStock}
               className={`w-full ${
-                product.inStock ? 'bg-[#FF2B74] hover:bg-[#E11D48]' : 'bg-slate-200 cursor-not-allowed'
-              } text-white text-[11px] sm:text-[14px] font-black py-2 sm:py-2.5 rounded-xl transition-all shadow-sm active:scale-[0.98] flex items-center justify-center gap-1.5`}
+                product.inStock
+                  ? 'bg-[#CBE8F2] hover:bg-[#B3DFED] active:scale-[0.98] text-[#0284C7]'
+                  : 'bg-slate-100 text-slate-400 cursor-not-allowed'
+              } font-bold text-[12px] sm:text-[13px] py-1.5 sm:py-2 rounded-lg transition-all flex items-center justify-center gap-1 cursor-pointer`}
             >
-              <ShoppingBag className="w-4 h-4 sm:w-5 sm:h-5" />
+              <ShoppingBag className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#0284C7]" />
               <span>Order Now</span>
             </button>
           </div>
@@ -167,3 +189,4 @@ export const ProductCard: React.FC<ProductCardProps> = ({
     </div>
   );
 };
+

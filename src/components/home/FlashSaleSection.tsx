@@ -7,6 +7,10 @@ const FlashProductCard: React.FC<{
   product: any;
   onCardClick: () => void;
 }> = ({ product, onCardClick }) => {
+  const discountPercent = product.discountPercent || (product.oldPrice && product.oldPrice > product.price
+    ? Math.round(((product.oldPrice - product.price) / product.oldPrice) * 100)
+    : undefined);
+
   return (
     <div
       onClick={onCardClick}
@@ -24,9 +28,9 @@ const FlashProductCard: React.FC<{
         />
         
         {/* Discount Badge */}
-        {product.discountPercent && product.discountPercent > 0 && (
+        {discountPercent && discountPercent > 0 && (
           <div className="absolute top-0 left-0 bg-[var(--fs-pink)] text-white text-[0.65em] sm:text-[0.8em] font-black px-[0.6em] py-[0.25em] rounded-[0_0_0.7em_0] z-10 shadow-sm uppercase tracking-tighter">
-            -{product.discountPercent}%
+            -{discountPercent}%
           </div>
         )}
       </div>
@@ -41,7 +45,7 @@ const FlashProductCard: React.FC<{
           <span className="text-[1.2em] sm:text-[1.5em] font-extrabold text-[var(--fs-pink)] tabular-nums tracking-tight">
             ৳{product.price.toLocaleString()}
           </span>
-          {product.oldPrice && (
+          {product.oldPrice && product.oldPrice > product.price && (
             <span className="text-[0.75em] sm:text-[0.9em] text-[#9ca3af] line-through tabular-nums opacity-80">
               ৳{product.oldPrice.toLocaleString()}
             </span>

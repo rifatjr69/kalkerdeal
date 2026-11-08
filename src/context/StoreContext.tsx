@@ -202,21 +202,39 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   // Products state (loads from Supabase if available, fallbacks to MOCK_PRODUCTS)
   const [products, setProducts] = useState<Product[]>(() => {
-    // Apply initial overrides to mock products for better local development experience
+    // Apply initial overrides to mock products for reliable offline & persistent state
     let flashOverrides: Record<string, boolean> = {};
+    let priceOverrides: Record<string, any> = {};
     try {
       if (typeof window !== 'undefined') {
-        const raw = localStorage.getItem('muba_flash_sale_overrides');
-        if (raw) flashOverrides = JSON.parse(raw);
+        const rawFlash = localStorage.getItem('muba_flash_sale_overrides');
+        if (rawFlash) flashOverrides = JSON.parse(rawFlash);
+        const rawPrice = localStorage.getItem('muba_product_price_overrides');
+        if (rawPrice) priceOverrides = JSON.parse(rawPrice);
       }
     } catch {}
 
-    if (Object.keys(flashOverrides).length === 0) return MOCK_PRODUCTS;
+    return MOCK_PRODUCTS.map(p => {
+      const pSlug = (p.slug || '').toLowerCase().trim();
+      const pTitle = (p.title || '').toLowerCase().trim();
+      const priceOv = priceOverrides[p.id] || (pSlug && priceOverrides[pSlug]) || (pTitle && priceOverrides[pTitle]);
 
-    return MOCK_PRODUCTS.map(p => ({
-      ...p,
-      isFlashSale: p.id in flashOverrides ? flashOverrides[p.id] : p.isFlashSale
-    }));
+      const finalPrice = priceOv && priceOv.price !== undefined ? Number(priceOv.price) : p.price;
+      const finalOldPrice = priceOv && priceOv.old_price !== undefined
+        ? (priceOv.old_price === null ? undefined : Number(priceOv.old_price))
+        : p.oldPrice;
+      const finalDiscount = priceOv && priceOv.discount_percent !== undefined
+        ? (priceOv.discount_percent === null ? undefined : Number(priceOv.discount_percent))
+        : (finalOldPrice && finalOldPrice > finalPrice ? Math.round(((finalOldPrice - finalPrice) / finalOldPrice) * 100) : p.discountPercent);
+
+      return {
+        ...p,
+        price: finalPrice,
+        oldPrice: finalOldPrice,
+        discountPercent: finalDiscount,
+        isFlashSale: p.id in flashOverrides ? flashOverrides[p.id] : p.isFlashSale
+      };
+    });
   });
   const [categories, setCategories] = useState<CategoryItem[]>([]);
 
@@ -228,24 +246,53 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         .order('created_at', { ascending: false });
 
       if (!error && data && data.length > 0) {
-        // Apply local flash sale overrides if any
+        // Apply local flash sale and price overrides so changes never disappear on refresh
         let flashOverrides: Record<string, boolean> = {};
+        let priceOverrides: Record<string, any> = {};
         try {
-          const raw = localStorage.getItem('muba_flash_sale_overrides');
-          if (raw) flashOverrides = JSON.parse(raw);
+          const rawFlash = localStorage.getItem('muba_flash_sale_overrides');
+          if (rawFlash) flashOverrides = JSON.parse(rawFlash);
+          const rawPrice = localStorage.getItem('muba_product_price_overrides');
+          if (rawPrice) priceOverrides = JSON.parse(rawPrice);
         } catch {}
 
         const mappedProducts: Product[] = data.map((item: any) => {
           const isFlash = item.id in flashOverrides ? flashOverrides[item.id] : Boolean(item.is_flash_sale);
           
+          const pSlug = (item.slug || '').toLowerCase().trim();
+          const pTitle = (item.title || item.name || '').toLowerCase().trim();
+          const priceOv = priceOverrides[item.id] || (pSlug && priceOverrides[pSlug]) || (pTitle && priceOverrides[pTitle]);
+
+          let finalPrice = Number(item.price || 0);
+          let finalOldPrice = item.old_price !== undefined && item.old_price !== null
+            ? Number(item.old_price)
+            : (item.oldPrice !== undefined && item.oldPrice !== null ? Number(item.oldPrice) : undefined);
+          let finalDiscount = item.discount_percent !== undefined && item.discount_percent !== null
+            ? Number(item.discount_percent)
+            : (item.discountPercent || undefined);
+
+          if (priceOv) {
+            if (priceOv.price !== undefined) finalPrice = Number(priceOv.price);
+            if (priceOv.old_price !== undefined) {
+              finalOldPrice = priceOv.old_price === null ? undefined : Number(priceOv.old_price);
+            }
+            if (priceOv.discount_percent !== undefined) {
+              finalDiscount = priceOv.discount_percent === null ? undefined : Number(priceOv.discount_percent);
+            }
+          }
+
+          if (finalOldPrice && finalOldPrice > finalPrice && !finalDiscount) {
+            finalDiscount = Math.round(((finalOldPrice - finalPrice) / finalOldPrice) * 100);
+          }
+
           return {
             id: item.id,
             title: item.title || item.name || 'Product',
             title_bn: item.title_bn || item.name_bn,
             slug: item.slug || `prod-${item.id}`,
-            price: Number(item.price || 0),
-            oldPrice: item.old_price ? Number(item.old_price) : undefined,
-            discountPercent: item.discount_percent || undefined,
+            price: finalPrice,
+            oldPrice: finalOldPrice,
+            discountPercent: finalDiscount,
             rating: item.rating ? Number(item.rating) : 4.8,
             reviewCount: item.review_count || 50,
             soldCount: item.sold_count || 12,

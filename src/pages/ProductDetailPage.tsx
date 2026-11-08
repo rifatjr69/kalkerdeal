@@ -251,21 +251,26 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ slug }) =>
 
             {/* Price Block */}
             <div className="p-2.5 sm:p-4 rounded-xl sm:rounded-2xl bg-slate-50 border border-slate-100 space-y-0">
-              <div className="flex items-baseline gap-2">
-                {product.discountPercent && (
-                  <span className="text-xs font-black text-[#E11D48]">
-                    ↓ {product.discountPercent}%
-                  </span>
-                )}
-                {product.oldPrice && (
-                  <span className="text-xs text-slate-400 line-through tabular-nums">
-                    ৳{product.oldPrice.toLocaleString()}
-                  </span>
-                )}
-                <span className="text-lg sm:text-3xl font-black text-[#E11D48] tabular-nums">
-                  ৳{product.price.toLocaleString()}
-                </span>
-              </div>
+              {(() => {
+                const discountPct = product.discountPercent || (product.oldPrice && product.oldPrice > product.price ? Math.round(((product.oldPrice - product.price) / product.oldPrice) * 100) : undefined);
+                return (
+                  <div className="flex items-baseline gap-2">
+                    {discountPct && discountPct > 0 && (
+                      <span className="text-xs font-black text-[#E11D48]">
+                        ↓ {discountPct}%
+                      </span>
+                    )}
+                    {product.oldPrice && product.oldPrice > product.price && (
+                      <span className="text-xs text-slate-400 line-through tabular-nums">
+                        ৳{product.oldPrice.toLocaleString()}
+                      </span>
+                    )}
+                    <span className="text-lg sm:text-3xl font-black text-[#E11D48] tabular-nums">
+                      ৳{product.price.toLocaleString()}
+                    </span>
+                  </div>
+                );
+              })()}
               <p className="text-[10px] text-emerald-700 font-semibold">
                 ✓ In Stock ({product.stock} units)
               </p>

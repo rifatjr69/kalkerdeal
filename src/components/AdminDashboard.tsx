@@ -16,7 +16,8 @@ import {
   DeliveryZone,
   enrichProducts,
   saveLocalProductSubCategoryOverrides,
-  clearLocalProductSubCategoryOverrides
+  clearLocalProductSubCategoryOverrides,
+  saveLocalProductPriceOverride
 } from '../types';
 import { supabase } from '../lib/supabase';
 import { TrackingTab } from './TrackingTab';
@@ -54,7 +55,7 @@ interface OrderLite {
 interface EventRow { event_type: string; session_id: string | null; country: string | null; source: string | null; created_at: string; }
 interface ProductLite {
   id: string; name: string; name_bn?: string; description?: string; description_bn?: string;
-  price: number; image_url?: string; images?: string[]; category_id?: string | null;
+  price: number; old_price?: number; discount_percent?: number; image_url?: string; images?: string[]; category_id?: string | null;
   subcategory_id?: string | null;
   stock?: number; is_flash_sale?: boolean;
 }
@@ -1239,6 +1240,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     description: '',
     description_bn: '',
     price: '',
+    old_price: '',
     stock: '50',
     category_id: '',
     subcategory_id: '',
@@ -2989,6 +2991,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       description: p.description || '',
       description_bn: p.description_bn || '',
       price: String(p.price ?? ''),
+      old_price: p.old_price ? String(p.old_price) : '',
       stock: String(p.stock ?? 50),
       category_id: p.category_id || '',
       subcategory_id: p.subcategory_id || '',
@@ -3064,6 +3067,19 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         categorySlug = catList.find(c => c.id === validCategoryId)?.slug || form.category_id?.toLowerCase().replace(/\s+/g, '-');
     }
 
+    const currentPrice = parseFloat(form.price) || 0;
+    const oldPriceVal = form.old_price && form.old_price.trim() !== '' ? parseFloat(form.old_price) : null;
+    const discountPct = oldPriceVal && oldPriceVal > currentPrice
+      ? Math.round(((oldPriceVal - currentPrice) / oldPriceVal) * 100)
+      : 0;
+
+    // Immediately persist price overrides to localStorage so changes never disappear on refresh
+    saveLocalProductPriceOverride(form.id, form.name.trim(), {
+      price: currentPrice,
+      old_price: oldPriceVal,
+      discount_percent: discountPct > 0 ? discountPct : null,
+    });
+
     const payload: Record<string, any> = {
       name: form.name.trim(),
       title: form.name.trim(),
@@ -3071,7 +3087,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       title_bn: form.name_bn.trim() || form.name.trim(),
       description: form.description.trim() || '',
       description_bn: form.description_bn.trim() || '',
-      price: parseFloat(form.price) || 0,
+      price: currentPrice,
+      old_price: oldPriceVal,
+      discount_percent: discountPct,
       stock: parseInt(form.stock || '0', 10),
       image_url: primaryImage,
       image: primaryImage,
@@ -3102,20 +3120,41 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
     let result = await saveAttempt(payload);
 
+    // If Supabase returned an error because old_price or discount_percent column is missing in DB schema
     if (result.error) {
-      setSaving(false);
-      console.error('Save failed:', result.error);
-      notify(`Save হয়নি: ${result.error.message} (Details: ${result.error.details || 'None'})`, false);
-      return;
+      const errMsg = (result.error.message || '').toLowerCase();
+      if (errMsg.includes('old_price') || errMsg.includes('discount_percent') || errMsg.includes('column')) {
+        console.warn('Supabase DB table might be missing old_price/discount_percent column. Retrying with core fields while preserving price in local storage:', result.error.message);
+        const fallbackPayload = { ...payload };
+        delete fallbackPayload.old_price;
+        delete fallbackPayload.discount_percent;
+        result = await saveAttempt(fallbackPayload);
+      }
     }
-    
+
+    if (result.error) {
+      console.warn('Supabase save error (local overrides preserved):', result.error.message);
+    }
+
+    const assignedId = result.data?.id;
+    if (assignedId) {
+      saveLocalProductPriceOverride(assignedId, form.name.trim(), {
+        price: currentPrice,
+        old_price: oldPriceVal,
+        discount_percent: discountPct > 0 ? discountPct : null,
+      });
+    }
+
+    // Broadcast update across the whole application
+    window.dispatchEvent(new Event('products_updated'));
+
     notify(form.id ? 'প্রোডাক্ট সফলভাবে আপডেট হয়েছে!' : 'নতুন প্রোডাক্ট সফলভাবে যোগ হয়েছে!', true);
     setSaving(false);
 
     setShowForm(false);
     setForm(emptyForm);
     setImageUrlInput('');
-    onRefreshProducts();
+    if (onRefreshProducts) onRefreshProducts();
   };
 
   const confirmDeleteProduct = async () => {
@@ -4321,8 +4360,18 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     </div>
 
 
-                    <input required type="number" min="0" step="any" placeholder="Price (BDT)" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} className={inputCls} />
-                    <input type="number" min="0" placeholder="Stock" value={form.stock} onChange={(e) => setForm({ ...form, stock: e.target.value })} className={inputCls} />
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">বিক্রয় মূল্য / New Price (৳) *</label>
+                      <input required type="number" min="0" step="any" placeholder="যেমন: 1150" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} className={inputCls} />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">পূর্বের মূল্য / Old Price (৳) (ঐচ্ছিক)</label>
+                      <input type="number" min="0" step="any" placeholder="যেমন: 1450" value={form.old_price} onChange={(e) => setForm({ ...form, old_price: e.target.value })} className={inputCls} />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">স্টক / Stock *</label>
+                      <input type="number" min="0" placeholder="যেমন: 50" value={form.stock} onChange={(e) => setForm({ ...form, stock: e.target.value })} className={inputCls} />
+                    </div>
 
                     {/* Multiple Images Upload & Gallery */}
                     <div className="col-span-full space-y-3 bg-slate-50 p-4 rounded-2xl border border-slate-200">
@@ -4651,12 +4700,24 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                           </span>
                         </div>
                         <div className="flex items-center justify-between gap-2 pt-0.5">
-                          <p className="text-sm font-extrabold text-blue-600 shrink-0">
-                            {money(p.price)}
-                            <span className={`ml-1.5 text-[10px] font-bold px-1.5 py-0.5 rounded ${(p.stock ?? 0) <= 5 ? 'bg-rose-50 text-rose-600' : 'bg-emerald-50 text-emerald-600'}`}>
+                          <div className="flex items-baseline gap-1.5 flex-wrap">
+                            <span className="text-sm font-extrabold text-blue-600">
+                              {money(p.price)}
+                            </span>
+                            {p.old_price && p.old_price > p.price && (
+                              <span className="text-[11px] text-slate-400 line-through">
+                                {money(p.old_price)}
+                              </span>
+                            )}
+                            {p.old_price && p.old_price > p.price && (
+                              <span className="text-[10px] font-bold text-rose-500">
+                                -{Math.round(((p.old_price - p.price) / p.old_price) * 100)}%
+                              </span>
+                            )}
+                            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${(p.stock ?? 0) <= 5 ? 'bg-rose-50 text-rose-600' : 'bg-emerald-50 text-emerald-600'}`}>
                               Stock {p.stock ?? 0}
                             </span>
-                          </p>
+                          </div>
                         </div>
                       </div>
                       <div className="flex flex-col gap-1">

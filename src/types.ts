@@ -243,21 +243,109 @@ export function applyLocalFlashSaleOverrides(products: Product[]): Product[] {
   });
 }
 
+const PRODUCT_PRICE_OVERRIDES_KEY = 'muba_product_price_overrides';
+
+export interface ProductPriceOverride {
+  price?: number;
+  old_price?: number | null;
+  discount_percent?: number | null;
+}
+
+export function saveLocalProductPriceOverride(
+  productId: string | undefined,
+  slugOrName: string | undefined,
+  override: ProductPriceOverride
+): void {
+  try {
+    const raw = localStorage.getItem(PRODUCT_PRICE_OVERRIDES_KEY);
+    const map: Record<string, ProductPriceOverride> = raw ? JSON.parse(raw) : {};
+    
+    if (productId) {
+      map[productId] = { ...(map[productId] || {}), ...override };
+    }
+    if (slugOrName) {
+      const key = slugOrName.toLowerCase().trim();
+      map[key] = { ...(map[key] || {}), ...override };
+    }
+    localStorage.setItem(PRODUCT_PRICE_OVERRIDES_KEY, JSON.stringify(map));
+  } catch {
+    /* ignore storage errors */
+  }
+}
+
+export function getLocalProductPriceOverrides(): Record<string, ProductPriceOverride> {
+  try {
+    const raw = localStorage.getItem(PRODUCT_PRICE_OVERRIDES_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === 'object') return parsed;
+    }
+  } catch {
+    /* ignore */
+  }
+  return {};
+}
+
+export function applyLocalProductPriceOverrides(products: Product[]): Product[] {
+  if (!products || products.length === 0) return [];
+  const map = getLocalProductPriceOverrides();
+  if (Object.keys(map).length === 0) return products;
+
+  return products.map((p) => {
+    const pSlug = (p.slug || '').toLowerCase().trim();
+    const pName = (p.name || '').toLowerCase().trim();
+    const ov = map[p.id] || (pSlug && map[pSlug]) || (pName && map[pName]);
+    if (!ov) return p;
+
+    const newPrice = ov.price !== undefined ? Number(ov.price) : p.price;
+    const newOldPrice =
+      ov.old_price !== undefined
+        ? ov.old_price === null
+          ? undefined
+          : Number(ov.old_price)
+        : p.old_price;
+
+    const newDiscount =
+      ov.discount_percent !== undefined
+        ? ov.discount_percent === null
+          ? undefined
+          : Number(ov.discount_percent)
+        : newOldPrice && newOldPrice > newPrice
+        ? Math.round(((newOldPrice - newPrice) / newOldPrice) * 100)
+        : p.discount_percent;
+
+    return {
+      ...p,
+      price: newPrice,
+      old_price: newOldPrice,
+      discount_percent: newDiscount,
+    };
+  });
+}
+
 export function enrichProducts(products: Product[]): Product[] {
   let enriched = applyLocalProductCategoryOverrides(products || []);
   enriched = applyLocalFlashSaleOverrides(enriched);
+  enriched = applyLocalProductPriceOverrides(enriched);
 
-  return enriched.map((p) => ({
-    ...p,
-    images: p.images && p.images.length > 0 ? p.images : p.image_url ? [p.image_url] : [],
-    old_price:
-      p.old_price ||
-      (p.discount_percent && p.discount_percent > 0
-        ? Math.round(p.price / (1 - p.discount_percent / 100))
-        : undefined),
-    stock: typeof p.stock === 'number' ? p.stock : 50,
-    rating: typeof p.rating === 'number' ? p.rating : 4.8,
-    review_count: typeof p.review_count === 'number' ? p.review_count : 35,
-  }));
+  return enriched.map((p) => {
+    const calculatedDiscount =
+      p.discount_percent !== undefined
+        ? p.discount_percent
+        : p.old_price && p.old_price > p.price
+        ? Math.round(((p.old_price - p.price) / p.old_price) * 100)
+        : undefined;
+
+    return {
+      ...p,
+      images: p.images && p.images.length > 0 ? p.images : p.image_url ? [p.image_url] : [],
+      old_price: p.old_price || undefined,
+      discount_percent: calculatedDiscount,
+      stock: typeof p.stock === 'number' ? p.stock : 50,
+      rating: typeof p.rating === 'number' ? p.rating : 4.8,
+      review_count: typeof p.review_count === 'number' ? p.review_count : 35,
+    };
+  });
 }
+
 
