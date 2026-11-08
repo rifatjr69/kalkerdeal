@@ -32,9 +32,29 @@ export const FlashSaleSection: React.FC = () => {
     return () => clearInterval(timer);
   }, []);
 
-  const formatNumber = (num: number) => num.toString().padStart(2, '0');
-
   const flashProducts = products.filter((p) => p.isFlashSale);
+
+  // Auto-scroll logic for "auto slide type" effect
+  useEffect(() => {
+    if (!scrollerRef.current || flashProducts.length === 0) return;
+    
+    const autoScrollInterval = setInterval(() => {
+      if (scrollerRef.current) {
+        const { scrollLeft, scrollWidth, clientWidth } = scrollerRef.current;
+        const maxScroll = scrollWidth - clientWidth;
+        
+        if (scrollLeft >= maxScroll - 10) {
+          scrollerRef.current.scrollTo({ left: 0, behavior: 'smooth' });
+        } else {
+          scrollerRef.current.scrollBy({ left: clientWidth > 500 ? 320 : 220, behavior: 'smooth' });
+        }
+      }
+    }, 5000);
+
+    return () => clearInterval(autoScrollInterval);
+  }, [flashProducts.length]);
+
+  const formatNumber = (num: number) => num.toString().padStart(2, '0');
 
   const scroll = (direction: 'left' | 'right') => {
     if (scrollerRef.current) {
@@ -43,67 +63,69 @@ export const FlashSaleSection: React.FC = () => {
     }
   };
 
+  if (flashProducts.length === 0) return null;
+
   return (
-    <section className="py-6 sm:py-8 bg-white">
-      <div className="max-w-7xl mx-auto px-4">
+    <section className="py-5 sm:py-8 bg-slate-50/30">
+      <div className="max-w-7xl mx-auto px-3 sm:px-6">
         <div className="flex flex-col lg:flex-row gap-4 sm:gap-6 items-stretch">
-          {/* Flash Sale Banner / Timer Card matching Screenshot 1 & 3 */}
-          <div className="w-full lg:w-72 rounded-2xl border border-slate-100 bg-white p-6 sm:p-7 flex flex-col justify-between shadow-[0_2px_12px_rgba(0,0,0,0.03)] shrink-0">
-            <div className="space-y-3">
-              <div className="w-10 h-10 rounded-xl bg-[#E0F2FE] text-[#0284C7] flex items-center justify-center">
-                <Zap className="w-6 h-6 fill-[#0284C7]" />
+          {/* Flash Sale Banner / Timer Card - Compact on mobile */}
+          <div className="w-full lg:w-72 rounded-2xl border border-slate-100 bg-white p-4 sm:p-6 lg:p-7 flex flex-row lg:flex-col items-center lg:items-start justify-between lg:justify-center shadow-[0_2px_12px_rgba(0,0,0,0.03)] shrink-0 gap-4">
+            <div className="flex items-center lg:flex-col lg:items-start gap-3 lg:gap-4 flex-1">
+              <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-blue-50 text-[#0284C7] flex items-center justify-center shrink-0">
+                <Zap className="w-5 h-5 sm:w-6 sm:h-6 fill-[#0284C7]" />
               </div>
 
-              <div>
-                <h2 className="text-2xl font-black text-slate-900 tracking-tight leading-none mb-1.5">
+              <div className="min-w-0">
+                <h2 className="text-sm sm:text-xl lg:text-2xl font-black text-slate-900 tracking-tight leading-none mb-1">
                   FLASH SALE
                 </h2>
-                <div className="inline-block bg-[#0284C7] text-white text-[11px] font-black px-2.5 py-0.5 rounded uppercase tracking-wider mb-2">
+                <div className="hidden sm:inline-block bg-[#0284C7] text-white text-[9px] sm:text-[10px] font-black px-2 py-0.5 rounded uppercase tracking-wider mb-1.5 lg:mb-2">
                   UPTO 23% OFF
                 </div>
-                <p className="text-xs font-semibold text-slate-500">
-                  Don&apos;t miss out
+                <p className="hidden lg:block text-xs font-semibold text-slate-500">
+                  Limited time offer!
                 </p>
               </div>
 
-              {/* Countdown Timer Boxes: HH : MM : SS */}
-              <div className="pt-2">
-                <div className="flex items-center gap-1.5">
-                  <div className="bg-[#111827] text-white font-mono font-bold text-base sm:text-lg px-2.5 py-1.5 rounded-lg tabular-nums">
+              {/* Countdown Timer Boxes */}
+              <div className="lg:pt-2">
+                <div className="flex items-center gap-1 sm:gap-1.5">
+                  <div className="bg-[#111827] text-white font-mono font-bold text-xs sm:text-base px-1.5 py-1 sm:px-2 sm:py-1.5 rounded-lg tabular-nums">
                     {formatNumber(timeLeft.hours)}
                   </div>
-                  <span className="font-extrabold text-slate-900">:</span>
-                  <div className="bg-[#111827] text-white font-mono font-bold text-base sm:text-lg px-2.5 py-1.5 rounded-lg tabular-nums">
+                  <span className="font-extrabold text-slate-900 text-xs">:</span>
+                  <div className="bg-[#111827] text-white font-mono font-bold text-xs sm:text-base px-1.5 py-1 sm:px-2 sm:py-1.5 rounded-lg tabular-nums">
                     {formatNumber(timeLeft.minutes)}
                   </div>
-                  <span className="font-extrabold text-slate-900">:</span>
-                  <div className="bg-[#111827] text-white font-mono font-bold text-base sm:text-lg px-2.5 py-1.5 rounded-lg tabular-nums">
+                  <span className="font-extrabold text-slate-900 text-xs">:</span>
+                  <div className="bg-[#111827] text-white font-mono font-bold text-xs sm:text-base px-1.5 py-1 sm:px-2 sm:py-1.5 rounded-lg tabular-nums">
                     {formatNumber(timeLeft.seconds)}
                   </div>
                 </div>
               </div>
             </div>
 
-            <div className="pt-6">
+            <div className="shrink-0 lg:w-full lg:pt-4">
               <button
                 type="button"
                 onClick={() => navigateTo('/shop', { filter: 'flash-sale' })}
-                className="w-full bg-[#0284C7] hover:bg-[#0369A1] text-white font-extrabold text-xs sm:text-sm py-2.5 px-4 rounded-xl shadow-md transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                className="bg-[#0284C7] hover:bg-[#0369A1] text-white font-black text-[10px] sm:text-xs py-2 px-3 sm:py-2.5 sm:px-4 rounded-xl shadow-sm transition-all flex items-center justify-center gap-1 sm:gap-1.5 cursor-pointer"
               >
-                <span>View All</span>
-                <ArrowRight className="w-4 h-4" />
+                <span className="hidden sm:inline">View All</span>
+                <span className="sm:hidden">See All</span>
+                <ArrowRight className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               </button>
             </div>
           </div>
 
           {/* Flash Sale Product Scroller */}
           <div className="flex-1 relative min-w-0">
-            {/* Scroll Navigation Arrows */}
+            {/* Scroll Navigation Arrows (Hidden on mobile) */}
             <div className="hidden sm:flex absolute -top-10 right-0 items-center gap-2 z-10">
               <button
                 type="button"
                 onClick={() => scroll('left')}
-                aria-label="Previous"
                 className="w-7 h-7 rounded-full border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 flex items-center justify-center transition shadow-2xs"
               >
                 <ChevronLeft className="w-4 h-4" />
@@ -111,7 +133,6 @@ export const FlashSaleSection: React.FC = () => {
               <button
                 type="button"
                 onClick={() => scroll('right')}
-                aria-label="Next"
                 className="w-7 h-7 rounded-full border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 flex items-center justify-center transition shadow-2xs"
               >
                 <ChevronRight className="w-4 h-4" />
@@ -120,10 +141,12 @@ export const FlashSaleSection: React.FC = () => {
 
             <div
               ref={scrollerRef}
-              className="grid grid-flow-col auto-cols-[210px] sm:auto-cols-[230px] lg:auto-cols-[240px] gap-4 overflow-x-auto no-scrollbar scroll-smooth pb-2"
+              className="flex gap-3 sm:gap-4 overflow-x-auto no-scrollbar scroll-smooth pb-2"
             >
               {flashProducts.map((product) => (
-                <ProductCard key={product.id} product={product} showSoldProgress={true} />
+                <div key={product.id} className="w-[165px] sm:w-[220px] lg:w-[240px] shrink-0">
+                  <ProductCard product={product} showSoldProgress={true} />
+                </div>
               ))}
             </div>
           </div>
