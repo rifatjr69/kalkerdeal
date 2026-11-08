@@ -139,213 +139,34 @@ export interface FlashSale {
   products?: Product[];
 }
 
-const PRODUCT_SUBCATEGORY_MAP_KEY = 'muba_product_subcategory_map';
-const FLASH_SALE_OVERRIDES_KEY = 'muba_flash_sale_overrides';
-
-export interface ProductCategoryOverride {
-  category_id?: string | null;
-  subcategory_id?: string | null;
-}
-
-export function saveLocalProductSubCategoryOverrides(
-  productIds: string[],
-  patch: ProductCategoryOverride
-): void {
-  if (!productIds || productIds.length === 0) return;
-  try {
-    const raw = localStorage.getItem(PRODUCT_SUBCATEGORY_MAP_KEY);
-    const map: Record<string, ProductCategoryOverride> = raw ? JSON.parse(raw) : {};
-    productIds.forEach((id) => {
-      if (!id) return;
-      map[id] = {
-        ...(map[id] || {}),
-        ...patch,
-      };
-    });
-    localStorage.setItem(PRODUCT_SUBCATEGORY_MAP_KEY, JSON.stringify(map));
-  } catch {
-    /* ignore storage errors */
-  }
-}
-
-export function clearLocalProductSubCategoryOverrides(productIds: string[]): void {
-  if (!productIds || productIds.length === 0) return;
-  try {
-    const raw = localStorage.getItem(PRODUCT_SUBCATEGORY_MAP_KEY);
-    if (!raw) return;
-    const map: Record<string, ProductCategoryOverride> = JSON.parse(raw);
-    let changed = false;
-    productIds.forEach((id) => {
-      if (id && id in map) {
-        delete map[id];
-        changed = true;
-      }
-    });
-    if (changed) {
-      localStorage.setItem(PRODUCT_SUBCATEGORY_MAP_KEY, JSON.stringify(map));
-    }
-  } catch {
-    /* ignore storage errors */
-  }
-}
-
-export function applyLocalProductCategoryOverrides(products: Product[]): Product[] {
-  if (!products || products.length === 0) return [];
-  let map: Record<string, ProductCategoryOverride> = {};
-  try {
-    const raw = localStorage.getItem(PRODUCT_SUBCATEGORY_MAP_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      if (parsed && typeof parsed === 'object') map = parsed;
-    }
-  } catch {
-    /* ignore */
-  }
-
-  const hasOverrides = Object.keys(map).length > 0;
-  if (!hasOverrides) return products;
-
-  return products.map((p) => {
-    const ov = map[p.id];
-    if (!ov) return p;
-    return {
-      ...p,
-      category_id: ov.category_id !== undefined ? ov.category_id : p.category_id,
-      subcategory_id: ov.subcategory_id !== undefined ? ov.subcategory_id : p.subcategory_id,
-    };
-  });
-}
-
-export function applyLocalFlashSaleOverrides(products: Product[]): Product[] {
-  if (!products || products.length === 0) return [];
-  let map: Record<string, boolean> = {};
-  try {
-    const raw = localStorage.getItem(FLASH_SALE_OVERRIDES_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      if (parsed && typeof parsed === 'object') map = parsed;
-    }
-  } catch {
-    /* ignore */
-  }
-
-  const hasOverrides = Object.keys(map).length > 0;
-  if (!hasOverrides) return products;
-
-  return products.map((p) => {
-    if (p.id in map) {
-      return {
-        ...p,
-        is_flash_sale: map[p.id],
-      };
-    }
-    return p;
-  });
-}
-
-const PRODUCT_PRICE_OVERRIDES_KEY = 'muba_product_price_overrides';
-
-export interface ProductPriceOverride {
-  price?: number;
-  old_price?: number | null;
-  discount_percent?: number | null;
-}
-
-export function saveLocalProductPriceOverride(
-  productId: string | undefined,
-  slugOrName: string | undefined,
-  override: ProductPriceOverride
-): void {
-  try {
-    const raw = localStorage.getItem(PRODUCT_PRICE_OVERRIDES_KEY);
-    const map: Record<string, ProductPriceOverride> = raw ? JSON.parse(raw) : {};
-    
-    if (productId) {
-      map[productId] = { ...(map[productId] || {}), ...override };
-    }
-    if (slugOrName) {
-      const key = slugOrName.toLowerCase().trim();
-      map[key] = { ...(map[key] || {}), ...override };
-    }
-    localStorage.setItem(PRODUCT_PRICE_OVERRIDES_KEY, JSON.stringify(map));
-  } catch {
-    /* ignore storage errors */
-  }
-}
-
-export function getLocalProductPriceOverrides(): Record<string, ProductPriceOverride> {
-  try {
-    const raw = localStorage.getItem(PRODUCT_PRICE_OVERRIDES_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      if (parsed && typeof parsed === 'object') return parsed;
-    }
-  } catch {
-    /* ignore */
-  }
-  return {};
-}
-
-export function applyLocalProductPriceOverrides(products: Product[]): Product[] {
-  if (!products || products.length === 0) return [];
-  const map = getLocalProductPriceOverrides();
-  if (Object.keys(map).length === 0) return products;
-
-  return products.map((p) => {
-    const pSlug = (p.slug || '').toLowerCase().trim();
-    const pName = (p.name || '').toLowerCase().trim();
-    const ov = map[p.id] || (pSlug && map[pSlug]) || (pName && map[pName]);
-    if (!ov) return p;
-
-    const newPrice = ov.price !== undefined ? Number(ov.price) : p.price;
-    const newOldPrice =
-      ov.old_price !== undefined
-        ? ov.old_price === null
-          ? undefined
-          : Number(ov.old_price)
-        : p.old_price;
-
-    const newDiscount =
-      ov.discount_percent !== undefined
-        ? ov.discount_percent === null
-          ? undefined
-          : Number(ov.discount_percent)
-        : newOldPrice && newOldPrice > newPrice
-        ? Math.round(((newOldPrice - newPrice) / newOldPrice) * 100)
-        : p.discount_percent;
-
-    return {
-      ...p,
-      price: newPrice,
-      old_price: newOldPrice,
-      discount_percent: newDiscount,
-    };
-  });
-}
-
 export function enrichProducts(products: Product[]): Product[] {
-  let enriched = applyLocalProductCategoryOverrides(products || []);
-  enriched = applyLocalFlashSaleOverrides(enriched);
-  enriched = applyLocalProductPriceOverrides(enriched);
+  return (products || []).map((p) => {
+    const rawOld = p.old_price ?? (p as any).oldPrice;
+    const oldPriceNum = rawOld !== undefined && rawOld !== null ? Number(rawOld) : undefined;
+    const oldPrice = oldPriceNum && !isNaN(oldPriceNum) && oldPriceNum > 0 ? oldPriceNum : undefined;
 
-  return enriched.map((p) => {
+    const rawDiscount = p.discount_percent ?? (p as any).discountPercent;
     const calculatedDiscount =
-      p.discount_percent !== undefined
-        ? p.discount_percent
-        : p.old_price && p.old_price > p.price
-        ? Math.round(((p.old_price - p.price) / p.old_price) * 100)
+      rawDiscount !== undefined && rawDiscount !== null && Number(rawDiscount) > 0
+        ? Number(rawDiscount)
+        : oldPrice && oldPrice > p.price
+        ? Math.round(((oldPrice - p.price) / oldPrice) * 100)
         : undefined;
 
     return {
       ...p,
       images: p.images && p.images.length > 0 ? p.images : p.image_url ? [p.image_url] : [],
-      old_price: p.old_price || undefined,
+      old_price: oldPrice,
+      oldPrice: oldPrice,
       discount_percent: calculatedDiscount,
+      discountPercent: calculatedDiscount,
       stock: typeof p.stock === 'number' ? p.stock : 50,
       rating: typeof p.rating === 'number' ? p.rating : 4.8,
       review_count: typeof p.review_count === 'number' ? p.review_count : 35,
     };
   });
 }
+
+
 
 

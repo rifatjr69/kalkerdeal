@@ -7,8 +7,11 @@ const FlashProductCard: React.FC<{
   product: any;
   onCardClick: () => void;
 }> = ({ product, onCardClick }) => {
-  const discountPercent = product.discountPercent || (product.oldPrice && product.oldPrice > product.price
-    ? Math.round(((product.oldPrice - product.price) / product.oldPrice) * 100)
+  const currentPrice = Number(product.price) || 0;
+  const rawOldPrice = product.oldPrice ?? product.old_price;
+  const oldPriceVal = rawOldPrice !== undefined && rawOldPrice !== null ? Number(rawOldPrice) : undefined;
+  const discountPercent = product.discountPercent ?? product.discount_percent ?? (oldPriceVal && oldPriceVal > currentPrice
+    ? Math.round(((oldPriceVal - currentPrice) / oldPriceVal) * 100)
     : undefined);
 
   return (
@@ -45,9 +48,9 @@ const FlashProductCard: React.FC<{
           <span className="text-[1.2em] sm:text-[1.5em] font-extrabold text-[var(--fs-pink)] tabular-nums tracking-tight">
             ৳{product.price.toLocaleString()}
           </span>
-          {product.oldPrice && product.oldPrice > product.price && (
+          {oldPriceVal && oldPriceVal > currentPrice && (
             <span className="text-[0.75em] sm:text-[0.9em] text-[#9ca3af] line-through tabular-nums opacity-80">
-              ৳{product.oldPrice.toLocaleString()}
+              ৳{oldPriceVal.toLocaleString()}
             </span>
           )}
         </div>

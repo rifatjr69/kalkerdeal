@@ -5,7 +5,9 @@ export interface Product {
   slug: string;
   price: number;
   oldPrice?: number;
+  old_price?: number;
   discountPercent?: number;
+  discount_percent?: number;
   rating?: number;
   reviewCount?: number;
   soldCount?: number;

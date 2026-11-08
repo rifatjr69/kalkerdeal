@@ -201,41 +201,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   // Products state (loads from Supabase if available, fallbacks to MOCK_PRODUCTS)
-  const [products, setProducts] = useState<Product[]>(() => {
-    // Apply initial overrides to mock products for reliable offline & persistent state
-    let flashOverrides: Record<string, boolean> = {};
-    let priceOverrides: Record<string, any> = {};
-    try {
-      if (typeof window !== 'undefined') {
-        const rawFlash = localStorage.getItem('muba_flash_sale_overrides');
-        if (rawFlash) flashOverrides = JSON.parse(rawFlash);
-        const rawPrice = localStorage.getItem('muba_product_price_overrides');
-        if (rawPrice) priceOverrides = JSON.parse(rawPrice);
-      }
-    } catch {}
-
-    return MOCK_PRODUCTS.map(p => {
-      const pSlug = (p.slug || '').toLowerCase().trim();
-      const pTitle = (p.title || '').toLowerCase().trim();
-      const priceOv = priceOverrides[p.id] || (pSlug && priceOverrides[pSlug]) || (pTitle && priceOverrides[pTitle]);
-
-      const finalPrice = priceOv && priceOv.price !== undefined ? Number(priceOv.price) : p.price;
-      const finalOldPrice = priceOv && priceOv.old_price !== undefined
-        ? (priceOv.old_price === null ? undefined : Number(priceOv.old_price))
-        : p.oldPrice;
-      const finalDiscount = priceOv && priceOv.discount_percent !== undefined
-        ? (priceOv.discount_percent === null ? undefined : Number(priceOv.discount_percent))
-        : (finalOldPrice && finalOldPrice > finalPrice ? Math.round(((finalOldPrice - finalPrice) / finalOldPrice) * 100) : p.discountPercent);
-
-      return {
-        ...p,
-        price: finalPrice,
-        oldPrice: finalOldPrice,
-        discountPercent: finalDiscount,
-        isFlashSale: p.id in flashOverrides ? flashOverrides[p.id] : p.isFlashSale
-      };
-    });
-  });
+  const [products, setProducts] = useState<Product[]>(MOCK_PRODUCTS);
   const [categories, setCategories] = useState<CategoryItem[]>([]);
 
   const refreshProducts = useCallback(async () => {
@@ -246,64 +212,38 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         .order('created_at', { ascending: false });
 
       if (!error && data && data.length > 0) {
-        // Apply local flash sale and price overrides so changes never disappear on refresh
-        let flashOverrides: Record<string, boolean> = {};
-        let priceOverrides: Record<string, any> = {};
-        try {
-          const rawFlash = localStorage.getItem('muba_flash_sale_overrides');
-          if (rawFlash) flashOverrides = JSON.parse(rawFlash);
-          const rawPrice = localStorage.getItem('muba_product_price_overrides');
-          if (rawPrice) priceOverrides = JSON.parse(rawPrice);
-        } catch {}
-
         const mappedProducts: Product[] = data.map((item: any) => {
-          const isFlash = item.id in flashOverrides ? flashOverrides[item.id] : Boolean(item.is_flash_sale);
+          const price = Number(item.price || 0);
+          const rawOldPrice = item.old_price !== null && item.old_price !== undefined ? Number(item.old_price) : undefined;
+          const oldPrice = rawOldPrice && !isNaN(rawOldPrice) && rawOldPrice > 0 ? rawOldPrice : undefined;
           
-          const pSlug = (item.slug || '').toLowerCase().trim();
-          const pTitle = (item.title || item.name || '').toLowerCase().trim();
-          const priceOv = priceOverrides[item.id] || (pSlug && priceOverrides[pSlug]) || (pTitle && priceOverrides[pTitle]);
-
-          let finalPrice = Number(item.price || 0);
-          let finalOldPrice = item.old_price !== undefined && item.old_price !== null
-            ? Number(item.old_price)
-            : (item.oldPrice !== undefined && item.oldPrice !== null ? Number(item.oldPrice) : undefined);
-          let finalDiscount = item.discount_percent !== undefined && item.discount_percent !== null
-            ? Number(item.discount_percent)
-            : (item.discountPercent || undefined);
-
-          if (priceOv) {
-            if (priceOv.price !== undefined) finalPrice = Number(priceOv.price);
-            if (priceOv.old_price !== undefined) {
-              finalOldPrice = priceOv.old_price === null ? undefined : Number(priceOv.old_price);
-            }
-            if (priceOv.discount_percent !== undefined) {
-              finalDiscount = priceOv.discount_percent === null ? undefined : Number(priceOv.discount_percent);
-            }
-          }
-
-          if (finalOldPrice && finalOldPrice > finalPrice && !finalDiscount) {
-            finalDiscount = Math.round(((finalOldPrice - finalPrice) / finalOldPrice) * 100);
-          }
+          // Calculate discount if missing in DB but old price exists
+          const rawDiscount = item.discount_percent !== null && item.discount_percent !== undefined ? Number(item.discount_percent) : undefined;
+          const discountPercent = rawDiscount && rawDiscount > 0
+            ? rawDiscount
+            : (oldPrice && oldPrice > price ? Math.round(((oldPrice - price) / oldPrice) * 100) : undefined);
 
           return {
             id: item.id,
-            title: item.title || item.name || 'Product',
-            title_bn: item.title_bn || item.name_bn,
+            title: item.name || 'Product',
+            title_bn: item.name_bn || item.name,
             slug: item.slug || `prod-${item.id}`,
-            price: finalPrice,
-            oldPrice: finalOldPrice,
-            discountPercent: finalDiscount,
+            price,
+            oldPrice,
+            old_price: oldPrice,
+            discountPercent,
+            discount_percent: discountPercent,
             rating: item.rating ? Number(item.rating) : 4.8,
             reviewCount: item.review_count || 50,
-            soldCount: item.sold_count || 12,
+            soldCount: item.sold_quantity || 12,
             stock: item.stock ?? 50,
-            image: item.image || item.image_url || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=600&q=80',
+            image: item.image_url || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=600&q=80',
             hoverImage: item.hover_image,
-            images: Array.isArray(item.images) && item.images.length > 0 ? item.images : [item.image || item.image_url || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=600&q=80'],
-            category: item.category_slug || item.category || 'general',
-            subCategory: item.sub_category_slug || item.subCategory,
-            brand: item.brand_name || item.brand || 'Cart App',
-            isFlashSale: isFlash,
+            images: Array.isArray(item.images) && item.images.length > 0 ? item.images : [item.image_url || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=600&q=80'],
+            category: item.category || 'general',
+            subCategory: item.subcategory || item.subcategory_id,
+            brand: item.brand_name || 'Cart App',
+            isFlashSale: Boolean(item.is_flash_sale),
             isFeatured: Boolean(item.is_featured),
             isLatestDrop: Boolean(item.is_latest_drop),
             isBestseller: Boolean(item.is_bestseller),
@@ -312,14 +252,14 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             isJustForYou: Boolean(item.is_just_for_you),
             isFast: item.is_fast !== false,
             isVerified: item.is_verified !== false,
-            promoBadge: item.promo_badge,
+            promoBadge: item.badge,
             description: item.description || '',
             description_bn: item.description_bn,
             shortDescription: item.short_description,
             specs: item.specs || {},
             colors: item.colors || [],
             sizes: item.sizes || [],
-            inStock: item.in_stock !== false && (item.stock === undefined || item.stock > 0)
+            inStock: (item.stock === undefined || item.stock > 0)
           };
         });
         setProducts(mappedProducts);

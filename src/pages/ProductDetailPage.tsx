@@ -252,7 +252,10 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ slug }) =>
             {/* Price Block */}
             <div className="p-2.5 sm:p-4 rounded-xl sm:rounded-2xl bg-slate-50 border border-slate-100 space-y-0">
               {(() => {
-                const discountPct = product.discountPercent || (product.oldPrice && product.oldPrice > product.price ? Math.round(((product.oldPrice - product.price) / product.oldPrice) * 100) : undefined);
+                const currentPrice = Number(product.price) || 0;
+                const rawOld = product.oldPrice ?? product.old_price;
+                const oldPriceVal = rawOld !== undefined && rawOld !== null ? Number(rawOld) : undefined;
+                const discountPct = product.discountPercent ?? product.discount_percent ?? (oldPriceVal && oldPriceVal > currentPrice ? Math.round(((oldPriceVal - currentPrice) / oldPriceVal) * 100) : undefined);
                 return (
                   <div className="flex items-baseline gap-2">
                     {discountPct && discountPct > 0 && (
@@ -260,13 +263,13 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ slug }) =>
                         ↓ {discountPct}%
                       </span>
                     )}
-                    {product.oldPrice && product.oldPrice > product.price && (
+                    {oldPriceVal && oldPriceVal > currentPrice && (
                       <span className="text-xs text-slate-400 line-through tabular-nums">
-                        ৳{product.oldPrice.toLocaleString()}
+                        ৳{oldPriceVal.toLocaleString()}
                       </span>
                     )}
                     <span className="text-lg sm:text-3xl font-black text-[#E11D48] tabular-nums">
-                      ৳{product.price.toLocaleString()}
+                      ৳{currentPrice.toLocaleString()}
                     </span>
                   </div>
                 );

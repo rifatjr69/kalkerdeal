@@ -14,10 +14,7 @@ import {
   Banner,
   FlashSale,
   DeliveryZone,
-  enrichProducts,
-  saveLocalProductSubCategoryOverrides,
-  clearLocalProductSubCategoryOverrides,
-  saveLocalProductPriceOverride
+  enrichProducts
 } from '../types';
 import { supabase } from '../lib/supabase';
 import { TrackingTab } from './TrackingTab';
@@ -2178,17 +2175,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const toggleFlashSale = async (product: { id: string; is_flash_sale?: boolean }) => {
     const nextStatus = !product.is_flash_sale;
 
-    // 1. Immediately save to localStorage override map
-    try {
-      const raw = localStorage.getItem('muba_flash_sale_overrides');
-      const overrides: Record<string, boolean> = raw ? JSON.parse(raw) : {};
-      overrides[product.id] = nextStatus;
-      localStorage.setItem('muba_flash_sale_overrides', JSON.stringify(overrides));
-    } catch {
-      /* ignore */
-    }
-
-    // 2. Dispatch custom event for real-time update on front-end
+    // 1. Dispatch custom event for real-time update on front-end
     window.dispatchEvent(new Event('products_updated'));
 
     // 3. Try updating Supabase database
@@ -3061,12 +3048,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       ? Math.round(((oldPriceVal - currentPrice) / oldPriceVal) * 100)
       : 0;
 
-    // Immediately persist price overrides to localStorage as client-side backup
-    saveLocalProductPriceOverride(form.id, form.name.trim(), {
-      price: currentPrice,
-      old_price: oldPriceVal,
-      discount_percent: discountPct > 0 ? discountPct : null,
-    });
 
     // Exact schema matching public.products columns in Supabase:
     // (Notice: 'title', 'title_bn', 'image', 'category_slug' do NOT exist in the table and cause PGRST204 errors)
@@ -3128,13 +3109,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     }
 
     const assignedId = result.data?.id;
-    if (assignedId) {
-      saveLocalProductPriceOverride(assignedId, form.name.trim(), {
-        price: currentPrice,
-        old_price: oldPriceVal,
-        discount_percent: discountPct > 0 ? discountPct : null,
-      });
-    }
 
     // Broadcast update across the whole application
     window.dispatchEvent(new Event('products_updated'));
@@ -3444,20 +3418,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         }
       }
 
-      if (dbSavedWithSub) {
-        clearLocalProductSubCategoryOverrides(dbIds);
-        if (nonDbIds.length > 0) {
-          saveLocalProductSubCategoryOverrides(nonDbIds, {
-            category_id: validParentUuid || rawParentCatKey || null,
-            subcategory_id: subObj.id,
-          });
-        }
-      } else {
-        saveLocalProductSubCategoryOverrides(targetProductIds, {
-          category_id: validParentUuid || rawParentCatKey || null,
-          subcategory_id: subObj.id,
-        });
-      }
+
 
       const subLabel = subObj.name_bn || subObj.name;
       return {
@@ -3494,20 +3455,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         }
       }
 
-      if (dbClearedSub) {
-        clearLocalProductSubCategoryOverrides(dbIds);
-        if (nonDbIds.length > 0) {
-          saveLocalProductSubCategoryOverrides(nonDbIds, {
-            ...(validCatUuid ? { category_id: validCatUuid } : {}),
-            subcategory_id: null,
-          });
-        }
-      } else {
-        saveLocalProductSubCategoryOverrides(targetProductIds, {
-          ...(validCatUuid ? { category_id: validCatUuid } : {}),
-          subcategory_id: null,
-        });
-      }
+
 
       return {
         ok: true,
@@ -3534,20 +3482,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         }
       }
 
-      if (dbClearedBoth) {
-        clearLocalProductSubCategoryOverrides(dbIds);
-        if (nonDbIds.length > 0) {
-          saveLocalProductSubCategoryOverrides(nonDbIds, {
-            category_id: null,
-            subcategory_id: null,
-          });
-        }
-      } else {
-        saveLocalProductSubCategoryOverrides(targetProductIds, {
-          category_id: null,
-          subcategory_id: null,
-        });
-      }
+
 
       return {
         ok: true,
@@ -3583,20 +3518,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         }
       }
 
-      if (dbSavedClean) {
-        clearLocalProductSubCategoryOverrides(dbIds);
-        if (nonDbIds.length > 0) {
-          saveLocalProductSubCategoryOverrides(nonDbIds, {
-            category_id: validCatUuid || categorySelection,
-            subcategory_id: null,
-          });
-        }
-      } else {
-        saveLocalProductSubCategoryOverrides(targetProductIds, {
-          category_id: validCatUuid || categorySelection,
-          subcategory_id: null,
-        });
-      }
+
 
       const catLabel = catObj ? catObj.name_bn || catObj.name : 'ক্যাটাগরি';
       return {

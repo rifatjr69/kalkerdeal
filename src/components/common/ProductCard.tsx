@@ -40,9 +40,11 @@ export const ProductCard: React.FC<ProductCardProps> = ({
     toggleWishlist(product.id);
   };
 
-  // Calculate discount percentage if old price exists and percent is not set
-  const discountPercent = product.discountPercent || (product.oldPrice && product.oldPrice > product.price
-    ? Math.round(((product.oldPrice - product.price) / product.oldPrice) * 100)
+  const currentPrice = Number(product.price) || 0;
+  const rawOldPrice = product.oldPrice ?? product.old_price;
+  const oldPriceVal = rawOldPrice !== undefined && rawOldPrice !== null ? Number(rawOldPrice) : undefined;
+  const discountPercent = product.discountPercent ?? product.discount_percent ?? (oldPriceVal && oldPriceVal > currentPrice
+    ? Math.round(((oldPriceVal - currentPrice) / oldPriceVal) * 100)
     : undefined);
 
   // Soft circle color based on product ID or index for screenshot look
@@ -153,13 +155,13 @@ export const ProductCard: React.FC<ProductCardProps> = ({
                 ↓{discountPercent}%
               </span>
             )}
-            {product.oldPrice && product.oldPrice > product.price && (
+            {oldPriceVal && oldPriceVal > currentPrice && (
               <span className="text-[10px] sm:text-[11px] text-slate-400 line-through tabular-nums">
-                ৳{product.oldPrice.toLocaleString()}
+                ৳{oldPriceVal.toLocaleString()}
               </span>
             )}
             <span className="text-[14px] sm:text-[16px] font-black text-[#D6175F] tabular-nums">
-              ৳{product.price.toLocaleString()}
+              ৳{currentPrice.toLocaleString()}
             </span>
           </div>
 
