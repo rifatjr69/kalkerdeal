@@ -10,7 +10,7 @@ const FlashProductCard: React.FC<{
   return (
     <div
       onClick={onCardClick}
-      className="flex-none w-[8.2em] sm:w-[11.5em] flex flex-col gap-[0.3em] cursor-pointer group snap-start shrink-0"
+      className="flex-none w-[8.2em] sm:w-[11.5em] flex flex-col gap-[0.3em] cursor-pointer group snap-start shrink-0 select-none"
       style={{ isolation: 'isolate' }}
     >
       {/* Image Box */}
@@ -19,7 +19,7 @@ const FlashProductCard: React.FC<{
           src={product.image}
           alt={product.title}
           draggable={false}
-          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110 pointer-events-none select-none"
+          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110 pointer-events-none"
           loading="lazy"
         />
         
@@ -73,11 +73,11 @@ export const FlashSaleSection: React.FC = () => {
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(true);
 
-  // Mouse / pointer drag-to-slide tracker
-  const isPointerDown = useRef(false);
-  const pointerStartX = useRef(0);
+  // Mouse drag-to-slide tracker (only active for mouse pointer, not touch)
+  const isMouseDown = useRef(false);
+  const mouseStartX = useRef(0);
   const scrollStartPos = useRef(0);
-  const isDraggingDist = useRef(false);
+  const dragDistance = useRef(0);
 
   const [timeLeft, setTimeLeft] = useState({
     hours: 10,
@@ -103,8 +103,8 @@ export const FlashSaleSection: React.FC = () => {
   const checkScrollability = () => {
     if (scrollerRef.current) {
       const { scrollLeft, scrollWidth, clientWidth } = scrollerRef.current;
-      setCanScrollLeft(scrollLeft > 10);
-      setCanScrollRight(scrollLeft + clientWidth < scrollWidth - 10);
+      setCanScrollLeft(scrollLeft > 8);
+      setCanScrollRight(scrollLeft + clientWidth < scrollWidth - 8);
     }
   };
 
@@ -123,41 +123,40 @@ export const FlashSaleSection: React.FC = () => {
 
   const slide = (direction: 'left' | 'right') => {
     if (scrollerRef.current) {
-      const cardWidth = window.innerWidth < 640 ? 140 : 200;
+      const cardWidth = window.innerWidth < 640 ? 150 : 220;
       const amount = direction === 'left' ? -cardWidth * 2 : cardWidth * 2;
       scrollerRef.current.scrollBy({ left: amount, behavior: 'smooth' });
     }
   };
 
-  // Mouse drag support for desktop (touch is natively handled with smooth kinetic scroll)
+  // Mouse Drag handlers - ONLY for actual mouse events, leaving touch events untouched for native smooth swiping
   const handleMouseDown = (e: React.MouseEvent) => {
-    if (!scrollerRef.current) return;
-    isPointerDown.current = true;
-    isDraggingDist.current = false;
-    pointerStartX.current = e.pageX;
+    if (e.button !== 0 || !scrollerRef.current) return;
+    isMouseDown.current = true;
+    dragDistance.current = 0;
+    mouseStartX.current = e.clientX;
     scrollStartPos.current = scrollerRef.current.scrollLeft;
   };
 
   const handleMouseMove = (e: React.MouseEvent) => {
-    if (!isPointerDown.current || !scrollerRef.current) return;
-    const deltaX = e.pageX - pointerStartX.current;
-    if (Math.abs(deltaX) > 6) {
-      isDraggingDist.current = true;
-    }
-    if (isDraggingDist.current) {
-      scrollerRef.current.scrollLeft = scrollStartPos.current - deltaX;
+    if (!isMouseDown.current || !scrollerRef.current) return;
+    const delta = e.clientX - mouseStartX.current;
+    dragDistance.current = Math.abs(delta);
+    if (dragDistance.current > 4) {
+      scrollerRef.current.scrollLeft = scrollStartPos.current - delta;
     }
   };
 
   const handleMouseUp = () => {
-    isPointerDown.current = false;
-    setTimeout(() => {
-      isDraggingDist.current = false;
-    }, 50);
+    isMouseDown.current = false;
   };
 
   const handleProductClick = (slug: string) => {
-    if (isDraggingDist.current) return; // Prevent navigation when user was sliding/dragging
+    // Only navigate if user didn't drag with mouse
+    if (dragDistance.current > 6) {
+      dragDistance.current = 0;
+      return;
+    }
     navigateTo(`/product/${slug}`);
   };
 
@@ -214,9 +213,10 @@ export const FlashSaleSection: React.FC = () => {
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseUp}
-        className="flex flex-nowrap gap-[0.7em] sm:gap-[1.2em] overflow-x-auto no-scrollbar scroll-smooth snap-x snap-mandatory px-[1em] py-[0.2em] touch-pan-x cursor-grab active:cursor-grabbing"
+        className="flex flex-nowrap gap-[0.7em] sm:gap-[1.2em] overflow-x-auto no-scrollbar scroll-smooth snap-x snap-mandatory px-[1em] py-[0.2em] cursor-grab active:cursor-grabbing"
         style={{
           WebkitOverflowScrolling: 'touch',
+          touchAction: 'pan-x pan-y',
           overscrollBehaviorX: 'contain',
         }}
       >
