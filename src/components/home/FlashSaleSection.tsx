@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Zap, ArrowRight } from 'lucide-react';
+import { Zap, ArrowRight, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useStore } from '../../context/StoreContext';
 
 // Custom Flash Product Card to match specific requirements
@@ -9,7 +9,7 @@ const FlashProductCard: React.FC<{ product: any }> = ({ product }) => {
   return (
     <div
       onClick={() => navigateTo(`/product/${product.slug}`)}
-      className="flex-none w-[8.2em] sm:w-[11.5em] flex flex-col gap-[0.3em] cursor-pointer group snap-start shrink-0"
+      className="flex-none w-[8.2em] sm:w-[11.5em] flex flex-col gap-[0.3em] cursor-pointer group snap-start shrink-0 select-none"
       style={{ isolation: 'isolate' }}
     >
       {/* Image Box */}
@@ -17,7 +17,8 @@ const FlashProductCard: React.FC<{ product: any }> = ({ product }) => {
         <img
           src={product.image}
           alt={product.title}
-          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+          draggable={false}
+          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110 pointer-events-none"
           loading="lazy"
         />
         
@@ -68,6 +69,14 @@ const FlashProductCard: React.FC<{ product: any }> = ({ product }) => {
 export const FlashSaleSection: React.FC = () => {
   const { products, navigateTo } = useStore();
   const scrollerRef = useRef<HTMLDivElement>(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(true);
+
+  // Mouse drag-to-scroll state
+  const isDragging = useRef(false);
+  const startX = useRef(0);
+  const scrollLeftStart = useRef(0);
+  const hasMoved = useRef(false);
 
   const [timeLeft, setTimeLeft] = useState({
     hours: 10,
@@ -90,11 +99,64 @@ export const FlashSaleSection: React.FC = () => {
   const flashProducts = products.filter((p) => p.isFlashSale);
   const formatNumber = (num: number) => num.toString().padStart(2, '0');
 
+  const checkScrollability = () => {
+    if (scrollerRef.current) {
+      const { scrollLeft, scrollWidth, clientWidth } = scrollerRef.current;
+      setCanScrollLeft(scrollLeft > 10);
+      setCanScrollRight(scrollLeft + clientWidth < scrollWidth - 10);
+    }
+  };
+
+  useEffect(() => {
+    checkScrollability();
+    const scroller = scrollerRef.current;
+    if (scroller) {
+      scroller.addEventListener('scroll', checkScrollability, { passive: true });
+      window.addEventListener('resize', checkScrollability);
+      return () => {
+        scroller.removeEventListener('scroll', checkScrollability);
+        window.removeEventListener('resize', checkScrollability);
+      };
+    }
+  }, [flashProducts]);
+
+  const slide = (direction: 'left' | 'right') => {
+    if (scrollerRef.current) {
+      const cardWidth = window.innerWidth < 640 ? 160 : 220;
+      const amount = direction === 'left' ? -cardWidth * 2 : cardWidth * 2;
+      scrollerRef.current.scrollBy({ left: amount, behavior: 'smooth' });
+    }
+  };
+
+  // Mouse drag handlers
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (!scrollerRef.current) return;
+    isDragging.current = true;
+    hasMoved.current = false;
+    startX.current = e.pageX - scrollerRef.current.offsetLeft;
+    scrollLeftStart.current = scrollerRef.current.scrollLeft;
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!isDragging.current || !scrollerRef.current) return;
+    e.preventDefault();
+    const x = e.pageX - scrollerRef.current.offsetLeft;
+    const walk = (x - startX.current) * 1.5; // Drag sensitivity
+    if (Math.abs(walk) > 5) {
+      hasMoved.current = true;
+    }
+    scrollerRef.current.scrollLeft = scrollLeftStart.current - walk;
+  };
+
+  const handleMouseUpOrLeave = () => {
+    isDragging.current = false;
+  };
+
   if (flashProducts.length === 0) return null;
 
   return (
     <section 
-      className="w-full overflow-hidden font-['Plus_Jakarta_Sans',sans-serif] select-none"
+      className="relative w-full overflow-hidden font-['Plus_Jakarta_Sans',sans-serif] select-none group/section"
       style={{
         fontSize: 'clamp(11px, 3.6vw, 16px)',
         background: 'linear-gradient(180deg, #e6f5fb, #f4f5f9)',
@@ -112,9 +174,41 @@ export const FlashSaleSection: React.FC = () => {
         '--fs-black': '#0a0a0a'
       } as React.CSSProperties}
     >
+      {/* Left Slider Button */}
+      {canScrollLeft && (
+        <button
+          type="button"
+          onClick={() => slide('left')}
+          aria-label="Previous flash sale products"
+          className="hidden sm:flex absolute left-2 top-1/2 -translate-y-1/2 z-20 w-8 h-8 rounded-full bg-white/95 text-slate-800 shadow-md border border-slate-200 items-center justify-center hover:bg-white hover:scale-105 active:scale-95 transition-all cursor-pointer"
+        >
+          <ChevronLeft className="w-5 h-5 text-slate-700" />
+        </button>
+      )}
+
+      {/* Right Slider Button */}
+      {canScrollRight && (
+        <button
+          type="button"
+          onClick={() => slide('right')}
+          aria-label="Next flash sale products"
+          className="hidden sm:flex absolute right-2 top-1/2 -translate-y-1/2 z-20 w-8 h-8 rounded-full bg-white/95 text-slate-800 shadow-md border border-slate-200 items-center justify-center hover:bg-white hover:scale-105 active:scale-95 transition-all cursor-pointer"
+        >
+          <ChevronRight className="w-5 h-5 text-slate-700" />
+        </button>
+      )}
+
       <div 
         ref={scrollerRef}
-        className="flex flex-nowrap gap-[0.7em] sm:gap-[1.2em] overflow-x-auto no-scrollbar scroll-smooth snap-x snap-mandatory px-[1em]"
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUpOrLeave}
+        onMouseLeave={handleMouseUpOrLeave}
+        className="flex flex-nowrap gap-[0.7em] sm:gap-[1.2em] overflow-x-auto no-scrollbar scroll-smooth snap-x snap-mandatory px-[1em] cursor-grab active:cursor-grabbing"
+        style={{
+          WebkitOverflowScrolling: 'touch',
+          touchAction: 'pan-x pan-y',
+        }}
       >
         {/* Intro Card */}
         <div 
