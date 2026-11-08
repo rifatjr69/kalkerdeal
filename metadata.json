@@ -1,0 +1,8 @@
+{
+  "name": "Kalkerdeal",
+  "description": "Cart App - Complete Multi-Vendor E-Commerce Storefront for Bangladesh with Flash Sales, Verified Brands, Mega Menu, bKash Offers, and Free Delivery across 64 districts.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
