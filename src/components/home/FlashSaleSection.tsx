@@ -1,31 +1,87 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Zap, ChevronLeft, ChevronRight, ArrowRight } from 'lucide-react';
-import { ProductCard } from '../common/ProductCard';
+import { Zap, ArrowRight } from 'lucide-react';
 import { useStore } from '../../context/StoreContext';
+
+// Custom Flash Product Card to match specific em-based requirements
+const FlashProductCard: React.FC<{ product: any }> = ({ product }) => {
+  const { navigateTo } = useStore();
+
+  return (
+    <div
+      onClick={() => navigateTo(`/product/${product.slug}`)}
+      className="flex-none w-[9.8em] flex flex-col gap-[0.45em] cursor-pointer group snap-start"
+      style={{ isolation: 'isolate' }}
+    >
+      {/* Image Box */}
+      <div className="relative aspect-square bg-white rounded-[1.1em] overflow-hidden shadow-[0_0.2em_1em_rgba(0,0,0,0.03)] transition-transform duration-300 active:scale-95">
+        <img
+          src={product.image}
+          alt={product.title}
+          className="w-full h-full object-cover"
+          loading="lazy"
+        />
+        
+        {/* Discount Badge */}
+        {product.discountPercent && product.discountPercent > 0 && (
+          <div className="absolute top-0 left-0 bg-[var(--fs-pink)] text-white text-[0.75em] font-bold px-[0.6em] py-[0.25em] rounded-[1.1em_0_1.1em_0] z-10 shadow-sm">
+            -{product.discountPercent}%
+          </div>
+        )}
+      </div>
+
+      {/* Info Section */}
+      <div className="flex flex-col gap-[0.2em] px-[0.2em]">
+        <h3 className="text-[0.9em] font-medium text-[var(--fs-ink)] truncate leading-tight">
+          {product.title}
+        </h3>
+        
+        <div className="flex items-baseline gap-[0.4em] flex-wrap">
+          <span className="text-[1.4em] font-bold text-[var(--fs-pink)] tabular-nums">
+            ৳{product.price.toLocaleString()}
+          </span>
+          {product.oldPrice && (
+            <span className="text-[0.85em] text-[#9ca3af] line-through tabular-nums">
+              ৳{product.oldPrice.toLocaleString()}
+            </span>
+          )}
+        </div>
+
+        {/* Progress Bar Section */}
+        {product.soldCount !== undefined && (
+          <div className="mt-[0.2em] space-y-[0.3em]">
+            <div className="h-[0.42em] w-full bg-[var(--fs-track)] rounded-full overflow-hidden">
+              <div 
+                className="h-full bg-[var(--fs-navy)] rounded-full transition-all duration-500"
+                style={{ width: `${Math.min(100, (product.soldCount / 300) * 100)}%` }}
+              />
+            </div>
+            <p className="text-[0.8em] text-[var(--fs-muted)] font-medium">
+              {product.soldCount} items sold
+            </p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
 
 export const FlashSaleSection: React.FC = () => {
   const { products, navigateTo } = useStore();
   const scrollerRef = useRef<HTMLDivElement>(null);
 
-  // Real-time countdown timer (hours, minutes, seconds)
+  // Real-time countdown timer
   const [timeLeft, setTimeLeft] = useState({
     hours: 10,
-    minutes: 7,
-    seconds: 52
+    minutes: 46,
+    seconds: 9
   });
 
   useEffect(() => {
     const timer = setInterval(() => {
       setTimeLeft((prev) => {
-        if (prev.seconds > 0) {
-          return { ...prev, seconds: prev.seconds - 1 };
-        }
-        if (prev.minutes > 0) {
-          return { ...prev, minutes: 59, seconds: 59 };
-        }
-        if (prev.hours > 0) {
-          return { hours: prev.hours - 1, minutes: 59, seconds: 59 };
-        }
+        if (prev.seconds > 0) return { ...prev, seconds: prev.seconds - 1 };
+        if (prev.minutes > 0) return { ...prev, minutes: 59, seconds: 59 };
+        if (prev.hours > 0) return { hours: prev.hours - 1, minutes: 59, seconds: 59 };
         return { hours: 12, minutes: 0, seconds: 0 };
       });
     }, 1000);
@@ -33,101 +89,86 @@ export const FlashSaleSection: React.FC = () => {
   }, []);
 
   const flashProducts = products.filter((p) => p.isFlashSale);
-
-
   const formatNumber = (num: number) => num.toString().padStart(2, '0');
-
-  const scroll = (direction: 'left' | 'right') => {
-    if (scrollerRef.current) {
-      const amount = direction === 'left' ? -320 : 320;
-      scrollerRef.current.scrollBy({ left: amount, behavior: 'smooth' });
-    }
-  };
 
   if (flashProducts.length === 0) return null;
 
   return (
-    <section className="py-3 sm:py-6 bg-slate-50/50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6">
-        {/* Section Header (Desktop only) */}
-        <div className="hidden sm:flex items-center justify-between mb-3">
-          <div className="flex items-center gap-1.5">
-            <Zap className="w-4 h-4 text-blue-500 fill-blue-500" />
-            <h2 className="text-lg font-black text-[#0F172A] tracking-tight">FLASH SALE</h2>
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => scroll('left')}
-              className="w-7 h-7 rounded-full border border-slate-200 bg-white flex items-center justify-center hover:bg-slate-50 transition shadow-sm"
-            >
-              <ChevronLeft className="w-3.5 h-3.5" />
-            </button>
-            <button
-              onClick={() => scroll('right')}
-              className="w-7 h-7 rounded-full border border-slate-200 bg-white flex items-center justify-center hover:bg-slate-50 transition shadow-sm"
-            >
-              <ChevronRight className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        </div>
-
-        {/* Horizontal Scrollable Container */}
-        <div
-          ref={scrollerRef}
-          className="flex gap-1 sm:gap-4 overflow-x-auto no-scrollbar scroll-smooth snap-x pb-2 px-1"
+    <section 
+      className="w-full overflow-hidden font-['Plus_Jakarta_Sans',sans-serif]"
+      style={{
+        fontSize: 'clamp(13px, 3.9vw, 17px)',
+        background: 'linear-gradient(180deg, #e6f5fb, #f4f5f9)',
+        paddingTop: '1.4em',
+        paddingBottom: '1.8em',
+        '--fs-bg-1': '#e6f5fb',
+        '--fs-bg-2': '#f4f5f9',
+        '--fs-navy': '#0b1f4d',
+        '--fs-blue': '#17b2e3',
+        '--fs-blue-dark': '#1593c9',
+        '--fs-pink': '#d6175f',
+        '--fs-ink': '#1a1a2e',
+        '--fs-muted': '#6b7280',
+        '--fs-track': '#e5e7eb',
+        '--fs-black': '#0a0a0a'
+      } as React.CSSProperties}
+    >
+      <div 
+        ref={scrollerRef}
+        className="flex gap-[0.9em] overflow-x-auto no-scrollbar scroll-smooth snap-x snap-mandatory px-[1.2em]"
+      >
+        {/* Intro Card */}
+        <div 
+          className="flex-none w-[9.8em] rounded-[1.1em] p-[1.1em_0.95em] flex flex-col gap-[0.55em] snap-start shadow-[0_0.4em_1.5em_rgba(0,0,0,0.03)]"
+          style={{ background: 'linear-gradient(135deg, #ffffff, #dff2fa)' }}
         >
-          {/* Header Card - First element in the scroll on mobile */}
-          <div className="w-[115px] sm:w-[240px] lg:w-[260px] shrink-0 bg-white rounded-2xl border border-slate-100 p-2 sm:p-5 flex flex-col justify-start shadow-[0_4px_20px_rgba(0,0,0,0.03)] snap-start">
-            <div className="space-y-1 sm:space-y-3">
-              <div className="w-5 h-5 sm:w-10 sm:h-10 rounded-full bg-slate-50 text-[#0EA5E9] flex items-center justify-center">
-                <Zap className="w-3 h-3 sm:w-5 sm:h-5 fill-[#0EA5E9]" />
-              </div>
-
-              <div>
-                <h2 className="text-[12px] sm:text-2xl font-black text-[#1E3A8A] italic tracking-tighter leading-none mb-0.5">
-                  FLASH SALE
-                </h2>
-                <div className="text-[#0EA5E9] text-[7px] sm:text-[13px] font-black italic tracking-tight mb-0.5 sm:mb-2">
-                  UPTO 23% OFF
-                </div>
-                <p className="text-[7px] sm:text-[12px] font-bold text-slate-500">
-                  Don't miss out
-                </p>
-              </div>
-
-              {/* Timer Boxes */}
-              <div className="flex items-center gap-0.5 sm:gap-1.5 py-0.5 sm:py-1">
-                <div className="bg-[#1A1A1A] text-white font-bold text-[7px] sm:text-[14px] px-1 py-0.5 sm:px-2 sm:py-1.5 rounded-md sm:rounded-lg tabular-nums">
-                  {formatNumber(timeLeft.hours)}
-                </div>
-                <span className="font-black text-[#E11D48] text-[7px] sm:text-sm">:</span>
-                <div className="bg-[#1A1A1A] text-white font-bold text-[7px] sm:text-[14px] px-1 py-0.5 sm:px-2 sm:py-1.5 rounded-md sm:rounded-lg tabular-nums">
-                  {formatNumber(timeLeft.minutes)}
-                </div>
-                <span className="font-black text-[#E11D48] text-[7px] sm:text-sm">:</span>
-                <div className="bg-[#1A1A1A] text-white font-bold text-[7px] sm:text-[14px] px-1 py-0.5 sm:px-2 sm:py-1.5 rounded-md sm:rounded-lg tabular-nums">
-                  {formatNumber(timeLeft.seconds)}
-                </div>
-              </div>
-            </div>
-
-            <button
-              type="button"
-              onClick={() => navigateTo('/shop', { filter: 'flash-sale' })}
-              className="mt-2 sm:mt-6 bg-[#0EA5E9] hover:bg-[#0284C7] text-white font-black text-[8px] sm:text-[14px] py-1 sm:py-3 px-1.5 sm:px-4 rounded-lg sm:rounded-xl shadow-sm transition-all flex items-center justify-center gap-0.5 cursor-pointer w-full"
-            >
-              <span>View All</span>
-              <ArrowRight className="w-2 h-2 sm:w-4 sm:h-4" />
-            </button>
+          <div className="w-[1.9em] h-[1.9em] text-[#17b2e3] shrink-0">
+            <Zap className="w-full h-full fill-current" />
           </div>
 
-          {/* Product Cards */}
-          {flashProducts.map((product) => (
-            <div key={product.id} className="w-[120px] sm:w-[240px] lg:w-[260px] shrink-0 snap-start">
-              <ProductCard product={product} showSoldProgress={true} />
+          <div className="min-h-0">
+            <h2 
+              className="text-[2em] font-[800] italic uppercase leading-[0.9] text-[var(--fs-navy)]"
+              style={{ textShadow: '0.07em 0.07em 0 #8fd8f2' }}
+            >
+              FLASH<br />SALE
+            </h2>
+            <div className="text-[var(--fs-blue-dark)] text-[0.85em] font-bold italic tracking-tight mt-[0.3em] uppercase">
+              UPTO 23% OFF
             </div>
-          ))}
+            <p className="text-[var(--fs-ink)] text-[0.75em] font-medium mt-[0.2em]">
+              Don't miss out
+            </p>
+          </div>
+
+          {/* Countdown HH:MM:SS */}
+          <div className="flex items-center gap-[0.3em] mt-auto">
+            <div className="bg-[var(--fs-black)] text-white font-bold text-[0.85em] px-[0.45em] py-[0.3em] rounded-[0.5em] tabular-nums">
+              {formatNumber(timeLeft.hours)}
+            </div>
+            <span className="font-bold text-[var(--fs-pink)] text-[0.8em]">:</span>
+            <div className="bg-[var(--fs-black)] text-white font-bold text-[0.85em] px-[0.45em] py-[0.3em] rounded-[0.5em] tabular-nums">
+              {formatNumber(timeLeft.minutes)}
+            </div>
+            <span className="font-bold text-[var(--fs-pink)] text-[0.8em]">:</span>
+            <div className="bg-[var(--fs-black)] text-white font-bold text-[0.85em] px-[0.45em] py-[0.3em] rounded-[0.5em] tabular-nums">
+              {formatNumber(timeLeft.seconds)}
+            </div>
+          </div>
+
+          <button
+            onClick={() => navigateTo('/shop', { filter: 'flash-sale' })}
+            className="w-full bg-[var(--fs-blue)] hover:bg-[var(--fs-blue-dark)] text-white text-[0.85em] font-semibold py-[0.8em] rounded-[0.7em] shadow-md transition-all active:scale-[0.97] flex items-center justify-center gap-[0.3em]"
+          >
+            <span>View All</span>
+            <ArrowRight className="w-[1.2em] h-[1.2em]" />
+          </button>
         </div>
+
+        {/* Product Cards */}
+        {flashProducts.map((product) => (
+          <FlashProductCard key={product.id} product={product} />
+        ))}
       </div>
     </section>
   );

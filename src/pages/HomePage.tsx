@@ -11,11 +11,11 @@ export const HomePage: React.FC = () => {
       {/* Dynamic Website Banner Slider (ABOVE Category Section) */}
       <WebsiteBannerSlider />
 
-      {/* Category Icon Strip ("ক্যাটাগরি সমূহ") */}
-      <CategoryIconStrip />
-
       {/* Flash Sale Section */}
       <FlashSaleSection />
+
+      {/* Category Icon Strip ("ক্যাটাগরি সমূহ") */}
+      <CategoryIconStrip />
 
       {/* Just For You Products */}
       <JustForYouSection />
