@@ -140,6 +140,7 @@ export interface FlashSale {
 }
 
 const PRODUCT_SUBCATEGORY_MAP_KEY = 'muba_product_subcategory_map';
+const FLASH_SALE_OVERRIDES_KEY = 'muba_flash_sale_overrides';
 
 export interface ProductCategoryOverride {
   category_id?: string | null;
@@ -215,8 +216,38 @@ export function applyLocalProductCategoryOverrides(products: Product[]): Product
   });
 }
 
+export function applyLocalFlashSaleOverrides(products: Product[]): Product[] {
+  if (!products || products.length === 0) return [];
+  let map: Record<string, boolean> = {};
+  try {
+    const raw = localStorage.getItem(FLASH_SALE_OVERRIDES_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === 'object') map = parsed;
+    }
+  } catch {
+    /* ignore */
+  }
+
+  const hasOverrides = Object.keys(map).length > 0;
+  if (!hasOverrides) return products;
+
+  return products.map((p) => {
+    if (p.id in map) {
+      return {
+        ...p,
+        is_flash_sale: map[p.id],
+      };
+    }
+    return p;
+  });
+}
+
 export function enrichProducts(products: Product[]): Product[] {
-  return applyLocalProductCategoryOverrides(products || []).map((p) => ({
+  let enriched = applyLocalProductCategoryOverrides(products || []);
+  enriched = applyLocalFlashSaleOverrides(enriched);
+
+  return enriched.map((p) => ({
     ...p,
     images: p.images && p.images.length > 0 ? p.images : p.image_url ? [p.image_url] : [],
     old_price:

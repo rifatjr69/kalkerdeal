@@ -44,7 +44,9 @@ export const ShopPage: React.FC = () => {
       if (routeParams.filter === 'lowest_price') {
         setSortBy('price-asc');
       } else if (routeParams.filter === 'latest_drops') {
-        // filter for latest drops
+        // Handled in useMemo
+      } else if (routeParams.filter === 'flash-sale') {
+        // Handled in useMemo
       } else if (routeParams.filter === 'glow_go' || routeParams.filter === 'skin_care') {
         setSelectedCategory('health-beauty');
       }
@@ -94,6 +96,7 @@ export const ShopPage: React.FC = () => {
 
       // Quick filter presets
       if (initialFilter === 'latest_drops' && !p.isLatestDrop) return false;
+      if (initialFilter === 'flash-sale' && !p.isFlashSale) return false;
 
       return true;
     }).sort((a, b) => {

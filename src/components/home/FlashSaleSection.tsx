@@ -2,45 +2,45 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Zap, ArrowRight } from 'lucide-react';
 import { useStore } from '../../context/StoreContext';
 
-// Custom Flash Product Card to match specific em-based requirements
+// Custom Flash Product Card to match specific requirements
 const FlashProductCard: React.FC<{ product: any }> = ({ product }) => {
   const { navigateTo } = useStore();
 
   return (
     <div
       onClick={() => navigateTo(`/product/${product.slug}`)}
-      className="flex-none w-[9.8em] flex flex-col gap-[0.45em] cursor-pointer group snap-start"
+      className="flex-none w-[8.2em] sm:w-[11.5em] flex flex-col gap-[0.3em] cursor-pointer group snap-start shrink-0"
       style={{ isolation: 'isolate' }}
     >
       {/* Image Box */}
-      <div className="relative aspect-square bg-white rounded-[1.1em] overflow-hidden shadow-[0_0.2em_1em_rgba(0,0,0,0.03)] transition-transform duration-300 active:scale-95">
+      <div className="relative aspect-square bg-white rounded-[1em] overflow-hidden shadow-[0_2px_10px_rgba(0,0,0,0.02)] border border-white/50 transition-all duration-300 active:scale-95 group-hover:shadow-[0_4px_15px_rgba(0,0,0,0.05)]">
         <img
           src={product.image}
           alt={product.title}
-          className="w-full h-full object-cover"
+          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
           loading="lazy"
         />
         
         {/* Discount Badge */}
         {product.discountPercent && product.discountPercent > 0 && (
-          <div className="absolute top-0 left-0 bg-[var(--fs-pink)] text-white text-[0.75em] font-bold px-[0.6em] py-[0.25em] rounded-[1.1em_0_1.1em_0] z-10 shadow-sm">
+          <div className="absolute top-0 left-0 bg-[var(--fs-pink)] text-white text-[0.65em] sm:text-[0.8em] font-black px-[0.6em] py-[0.25em] rounded-[0_0_0.7em_0] z-10 shadow-sm uppercase tracking-tighter">
             -{product.discountPercent}%
           </div>
         )}
       </div>
 
       {/* Info Section */}
-      <div className="flex flex-col gap-[0.2em] px-[0.2em]">
-        <h3 className="text-[0.9em] font-medium text-[var(--fs-ink)] truncate leading-tight">
+      <div className="flex flex-col gap-[0.05em] px-[0.1em]">
+        <h3 className="text-[0.8em] sm:text-[1em] font-semibold text-[var(--fs-ink)] truncate leading-tight group-hover:text-[var(--fs-pink)] transition-colors">
           {product.title}
         </h3>
         
-        <div className="flex items-baseline gap-[0.4em] flex-wrap">
-          <span className="text-[1.4em] font-bold text-[var(--fs-pink)] tabular-nums">
+        <div className="flex items-center gap-[0.3em] flex-wrap">
+          <span className="text-[1.2em] sm:text-[1.5em] font-extrabold text-[var(--fs-pink)] tabular-nums tracking-tight">
             ৳{product.price.toLocaleString()}
           </span>
           {product.oldPrice && (
-            <span className="text-[0.85em] text-[#9ca3af] line-through tabular-nums">
+            <span className="text-[0.75em] sm:text-[0.9em] text-[#9ca3af] line-through tabular-nums opacity-80">
               ৳{product.oldPrice.toLocaleString()}
             </span>
           )}
@@ -48,15 +48,15 @@ const FlashProductCard: React.FC<{ product: any }> = ({ product }) => {
 
         {/* Progress Bar Section */}
         {product.soldCount !== undefined && (
-          <div className="mt-[0.2em] space-y-[0.3em]">
-            <div className="h-[0.42em] w-full bg-[var(--fs-track)] rounded-full overflow-hidden">
+          <div className="mt-[0.1em]">
+            <div className="h-[0.38em] w-full bg-[var(--fs-track)] rounded-full overflow-hidden mb-[0.2em]">
               <div 
-                className="h-full bg-[var(--fs-navy)] rounded-full transition-all duration-500"
+                className="h-full bg-[var(--fs-navy)] rounded-full transition-all duration-1000 ease-out"
                 style={{ width: `${Math.min(100, (product.soldCount / 300) * 100)}%` }}
               />
             </div>
-            <p className="text-[0.8em] text-[var(--fs-muted)] font-medium">
-              {product.soldCount} items sold
+            <p className="text-[0.7em] sm:text-[0.85em] text-[var(--fs-muted)] font-bold opacity-90">
+              {product.soldCount} sold
             </p>
           </div>
         )}
@@ -69,7 +69,6 @@ export const FlashSaleSection: React.FC = () => {
   const { products, navigateTo } = useStore();
   const scrollerRef = useRef<HTMLDivElement>(null);
 
-  // Real-time countdown timer
   const [timeLeft, setTimeLeft] = useState({
     hours: 10,
     minutes: 46,
@@ -95,12 +94,12 @@ export const FlashSaleSection: React.FC = () => {
 
   return (
     <section 
-      className="w-full overflow-hidden font-['Plus_Jakarta_Sans',sans-serif]"
+      className="w-full overflow-hidden font-['Plus_Jakarta_Sans',sans-serif] select-none"
       style={{
-        fontSize: 'clamp(14px, 4.2vw, 18px)',
+        fontSize: 'clamp(11px, 3.6vw, 16px)',
         background: 'linear-gradient(180deg, #e6f5fb, #f4f5f9)',
-        paddingTop: '1.6em',
-        paddingBottom: '2em',
+        paddingTop: '1em',
+        paddingBottom: '1.2em',
         '--fs-bg-1': '#e6f5fb',
         '--fs-bg-2': '#f4f5f9',
         '--fs-navy': '#0b1f4d',
@@ -115,64 +114,61 @@ export const FlashSaleSection: React.FC = () => {
     >
       <div 
         ref={scrollerRef}
-        className="flex gap-[1.1em] overflow-x-auto no-scrollbar scroll-smooth snap-x snap-mandatory px-[1.4em]"
+        className="flex flex-nowrap gap-[0.7em] sm:gap-[1.2em] overflow-x-auto no-scrollbar scroll-smooth snap-x snap-mandatory px-[1em]"
       >
         {/* Intro Card */}
         <div 
-          className="flex-none w-[11.5em] rounded-[1.2em] p-[1.2em_1em] flex flex-col gap-[0.6em] snap-start shadow-[0_0.4em_1.5em_rgba(0,0,0,0.03)]"
+          className="flex-none w-[8em] sm:w-[11.5em] rounded-[1em] p-[1em_0.8em] flex flex-col gap-[0.4em] snap-start shadow-[0_0.2em_1em_rgba(0,0,0,0.03)] shrink-0"
           style={{ background: 'linear-gradient(135deg, #ffffff, #dff2fa)' }}
         >
-          <div className="w-[2.2em] h-[2.2em] text-[#17b2e3] shrink-0">
+          <div className="w-[1.6em] h-[1.6em] text-[#17b2e3] shrink-0">
             <Zap className="w-full h-full fill-current" />
           </div>
 
           <div className="min-h-0">
             <h2 
-              className="text-[2.2em] font-[800] italic uppercase leading-[0.9] text-[var(--fs-navy)]"
-              style={{ textShadow: '0.07em 0.07em 0 #8fd8f2' }}
+              className="text-[1.6em] sm:text-[2.2em] font-[900] italic uppercase leading-[0.85] text-[var(--fs-navy)] tracking-tighter"
+              style={{ textShadow: '0.05em 0.05em 0 #8fd8f2' }}
             >
               FLASH<br />SALE
             </h2>
-            <div className="text-[var(--fs-blue-dark)] text-[0.9em] font-bold italic tracking-tight mt-[0.4em] uppercase">
+            <div className="text-[var(--fs-blue-dark)] text-[0.8em] sm:text-[1em] font-black italic tracking-tight mt-[0.25em] uppercase">
               UPTO 23% OFF
             </div>
-            <p className="text-[var(--fs-ink)] text-[0.8em] font-medium mt-[0.3em]">
-              Don't miss out
-            </p>
           </div>
 
           {/* Countdown HH:MM:SS */}
-          <div className="flex items-center gap-[0.4em] mt-auto">
-            <div className="bg-[var(--fs-black)] text-white font-bold text-[0.9em] px-[0.5em] py-[0.35em] rounded-[0.5em] tabular-nums">
+          <div className="flex items-center gap-[0.2em] mt-auto">
+            <div className="bg-[var(--fs-black)] text-white font-black text-[0.8em] sm:text-[1em] px-[0.4em] py-[0.25em] rounded-[0.4em] tabular-nums shadow-sm">
               {formatNumber(timeLeft.hours)}
             </div>
-            <span className="font-bold text-[var(--fs-pink)] text-[0.9em]">:</span>
-            <div className="bg-[var(--fs-black)] text-white font-bold text-[0.9em] px-[0.5em] py-[0.35em] rounded-[0.5em] tabular-nums">
+            <span className="font-black text-[var(--fs-pink)] text-[0.75em] animate-pulse">:</span>
+            <div className="bg-[var(--fs-black)] text-white font-black text-[0.8em] sm:text-[1em] px-[0.4em] py-[0.25em] rounded-[0.4em] tabular-nums shadow-sm">
               {formatNumber(timeLeft.minutes)}
             </div>
-            <span className="font-bold text-[var(--fs-pink)] text-[0.9em]">:</span>
-            <div className="bg-[var(--fs-black)] text-white font-bold text-[0.9em] px-[0.5em] py-[0.35em] rounded-[0.5em] tabular-nums">
+            <span className="font-black text-[var(--fs-pink)] text-[0.75em] animate-pulse">:</span>
+            <div className="bg-[var(--fs-black)] text-white font-black text-[0.8em] sm:text-[1em] px-[0.4em] py-[0.25em] rounded-[0.4em] tabular-nums shadow-sm">
               {formatNumber(timeLeft.seconds)}
             </div>
           </div>
 
           <button
             onClick={() => navigateTo('/shop', { filter: 'flash-sale' })}
-            className="w-full bg-[var(--fs-blue)] hover:bg-[var(--fs-blue-dark)] text-white text-[0.9em] font-semibold py-[0.9em] rounded-[0.8em] shadow-md transition-all active:scale-[0.97] flex items-center justify-center gap-[0.4em]"
+            className="w-full bg-[var(--fs-blue)] hover:bg-[var(--fs-blue-dark)] text-white text-[0.75em] sm:text-[0.95em] font-black py-[0.7em] rounded-[0.7em] shadow-lg shadow-blue-500/20 transition-all active:scale-[0.96] flex items-center justify-center gap-[0.2em]"
           >
             <span>View All</span>
-            <ArrowRight className="w-[1.2em] h-[1.2em]" />
+            <ArrowRight className="w-[1.1em] h-[1.1em]" />
           </button>
         </div>
 
         {/* Product Cards */}
         {flashProducts.map((product) => (
-          <div key={product.id} className="w-[11.5em] flex-none">
-            <FlashProductCard product={product} />
-          </div>
+          <FlashProductCard key={product.id} product={product} />
         ))}
       </div>
     </section>
   );
 };
+
+
 

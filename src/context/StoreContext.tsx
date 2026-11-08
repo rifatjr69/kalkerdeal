@@ -201,7 +201,23 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   // Products state (loads from Supabase if available, fallbacks to MOCK_PRODUCTS)
-  const [products, setProducts] = useState<Product[]>(MOCK_PRODUCTS);
+  const [products, setProducts] = useState<Product[]>(() => {
+    // Apply initial overrides to mock products for better local development experience
+    let flashOverrides: Record<string, boolean> = {};
+    try {
+      if (typeof window !== 'undefined') {
+        const raw = localStorage.getItem('muba_flash_sale_overrides');
+        if (raw) flashOverrides = JSON.parse(raw);
+      }
+    } catch {}
+
+    if (Object.keys(flashOverrides).length === 0) return MOCK_PRODUCTS;
+
+    return MOCK_PRODUCTS.map(p => ({
+      ...p,
+      isFlashSale: p.id in flashOverrides ? flashOverrides[p.id] : p.isFlashSale
+    }));
+  });
   const [categories, setCategories] = useState<CategoryItem[]>([]);
 
   const refreshProducts = useCallback(async () => {
@@ -212,42 +228,53 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         .order('created_at', { ascending: false });
 
       if (!error && data && data.length > 0) {
-        const mappedProducts: Product[] = data.map((item: any) => ({
-          id: item.id,
-          title: item.title || item.name || 'Product',
-          title_bn: item.title_bn || item.name_bn,
-          slug: item.slug || `prod-${item.id}`,
-          price: Number(item.price || 0),
-          oldPrice: item.old_price ? Number(item.old_price) : undefined,
-          discountPercent: item.discount_percent || undefined,
-          rating: item.rating ? Number(item.rating) : 4.8,
-          reviewCount: item.review_count || 50,
-          soldCount: item.sold_count || 12,
-          stock: item.stock ?? 50,
-          image: item.image || item.image_url || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=600&q=80',
-          hoverImage: item.hover_image,
-          images: Array.isArray(item.images) && item.images.length > 0 ? item.images : [item.image || item.image_url || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=600&q=80'],
-          category: item.category_slug || item.category || 'general',
-          subCategory: item.sub_category_slug || item.subCategory,
-          brand: item.brand_name || item.brand || 'Cart App',
-          isFlashSale: Boolean(item.is_flash_sale),
-          isFeatured: Boolean(item.is_featured),
-          isLatestDrop: Boolean(item.is_latest_drop),
-          isBestseller: Boolean(item.is_bestseller),
-          isGrocery: Boolean(item.is_grocery),
-          isDeal: Boolean(item.is_deal),
-          isJustForYou: Boolean(item.is_just_for_you),
-          isFast: item.is_fast !== false,
-          isVerified: item.is_verified !== false,
-          promoBadge: item.promo_badge,
-          description: item.description || '',
-          description_bn: item.description_bn,
-          shortDescription: item.short_description,
-          specs: item.specs || {},
-          colors: item.colors || [],
-          sizes: item.sizes || [],
-          inStock: item.in_stock !== false && (item.stock === undefined || item.stock > 0)
-        }));
+        // Apply local flash sale overrides if any
+        let flashOverrides: Record<string, boolean> = {};
+        try {
+          const raw = localStorage.getItem('muba_flash_sale_overrides');
+          if (raw) flashOverrides = JSON.parse(raw);
+        } catch {}
+
+        const mappedProducts: Product[] = data.map((item: any) => {
+          const isFlash = item.id in flashOverrides ? flashOverrides[item.id] : Boolean(item.is_flash_sale);
+          
+          return {
+            id: item.id,
+            title: item.title || item.name || 'Product',
+            title_bn: item.title_bn || item.name_bn,
+            slug: item.slug || `prod-${item.id}`,
+            price: Number(item.price || 0),
+            oldPrice: item.old_price ? Number(item.old_price) : undefined,
+            discountPercent: item.discount_percent || undefined,
+            rating: item.rating ? Number(item.rating) : 4.8,
+            reviewCount: item.review_count || 50,
+            soldCount: item.sold_count || 12,
+            stock: item.stock ?? 50,
+            image: item.image || item.image_url || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=600&q=80',
+            hoverImage: item.hover_image,
+            images: Array.isArray(item.images) && item.images.length > 0 ? item.images : [item.image || item.image_url || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=600&q=80'],
+            category: item.category_slug || item.category || 'general',
+            subCategory: item.sub_category_slug || item.subCategory,
+            brand: item.brand_name || item.brand || 'Cart App',
+            isFlashSale: isFlash,
+            isFeatured: Boolean(item.is_featured),
+            isLatestDrop: Boolean(item.is_latest_drop),
+            isBestseller: Boolean(item.is_bestseller),
+            isGrocery: Boolean(item.is_grocery),
+            isDeal: Boolean(item.is_deal),
+            isJustForYou: Boolean(item.is_just_for_you),
+            isFast: item.is_fast !== false,
+            isVerified: item.is_verified !== false,
+            promoBadge: item.promo_badge,
+            description: item.description || '',
+            description_bn: item.description_bn,
+            shortDescription: item.short_description,
+            specs: item.specs || {},
+            colors: item.colors || [],
+            sizes: item.sizes || [],
+            inStock: item.in_stock !== false && (item.stock === undefined || item.stock > 0)
+          };
+        });
         setProducts(mappedProducts);
         return;
       }
