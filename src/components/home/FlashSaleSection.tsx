@@ -3,13 +3,14 @@ import { Zap, ArrowRight, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useStore } from '../../context/StoreContext';
 
 // Custom Flash Product Card to match specific requirements
-const FlashProductCard: React.FC<{ product: any }> = ({ product }) => {
-  const { navigateTo } = useStore();
-
+const FlashProductCard: React.FC<{ 
+  product: any;
+  onCardClick: () => void;
+}> = ({ product, onCardClick }) => {
   return (
     <div
-      onClick={() => navigateTo(`/product/${product.slug}`)}
-      className="flex-none w-[8.2em] sm:w-[11.5em] flex flex-col gap-[0.3em] cursor-pointer group snap-start shrink-0 select-none"
+      onClick={onCardClick}
+      className="flex-none w-[8.2em] sm:w-[11.5em] flex flex-col gap-[0.3em] cursor-pointer group snap-start shrink-0"
       style={{ isolation: 'isolate' }}
     >
       {/* Image Box */}
@@ -18,7 +19,7 @@ const FlashProductCard: React.FC<{ product: any }> = ({ product }) => {
           src={product.image}
           alt={product.title}
           draggable={false}
-          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110 pointer-events-none"
+          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110 pointer-events-none select-none"
           loading="lazy"
         />
         
@@ -72,11 +73,11 @@ export const FlashSaleSection: React.FC = () => {
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(true);
 
-  // Mouse drag-to-scroll state
-  const isDragging = useRef(false);
-  const startX = useRef(0);
-  const scrollLeftStart = useRef(0);
-  const hasMoved = useRef(false);
+  // Mouse / pointer drag-to-slide tracker
+  const isPointerDown = useRef(false);
+  const pointerStartX = useRef(0);
+  const scrollStartPos = useRef(0);
+  const isDraggingDist = useRef(false);
 
   const [timeLeft, setTimeLeft] = useState({
     hours: 10,
@@ -122,41 +123,49 @@ export const FlashSaleSection: React.FC = () => {
 
   const slide = (direction: 'left' | 'right') => {
     if (scrollerRef.current) {
-      const cardWidth = window.innerWidth < 640 ? 160 : 220;
+      const cardWidth = window.innerWidth < 640 ? 140 : 200;
       const amount = direction === 'left' ? -cardWidth * 2 : cardWidth * 2;
       scrollerRef.current.scrollBy({ left: amount, behavior: 'smooth' });
     }
   };
 
-  // Mouse drag handlers
+  // Mouse drag support for desktop (touch is natively handled with smooth kinetic scroll)
   const handleMouseDown = (e: React.MouseEvent) => {
     if (!scrollerRef.current) return;
-    isDragging.current = true;
-    hasMoved.current = false;
-    startX.current = e.pageX - scrollerRef.current.offsetLeft;
-    scrollLeftStart.current = scrollerRef.current.scrollLeft;
+    isPointerDown.current = true;
+    isDraggingDist.current = false;
+    pointerStartX.current = e.pageX;
+    scrollStartPos.current = scrollerRef.current.scrollLeft;
   };
 
   const handleMouseMove = (e: React.MouseEvent) => {
-    if (!isDragging.current || !scrollerRef.current) return;
-    e.preventDefault();
-    const x = e.pageX - scrollerRef.current.offsetLeft;
-    const walk = (x - startX.current) * 1.5; // Drag sensitivity
-    if (Math.abs(walk) > 5) {
-      hasMoved.current = true;
+    if (!isPointerDown.current || !scrollerRef.current) return;
+    const deltaX = e.pageX - pointerStartX.current;
+    if (Math.abs(deltaX) > 6) {
+      isDraggingDist.current = true;
     }
-    scrollerRef.current.scrollLeft = scrollLeftStart.current - walk;
+    if (isDraggingDist.current) {
+      scrollerRef.current.scrollLeft = scrollStartPos.current - deltaX;
+    }
   };
 
-  const handleMouseUpOrLeave = () => {
-    isDragging.current = false;
+  const handleMouseUp = () => {
+    isPointerDown.current = false;
+    setTimeout(() => {
+      isDraggingDist.current = false;
+    }, 50);
+  };
+
+  const handleProductClick = (slug: string) => {
+    if (isDraggingDist.current) return; // Prevent navigation when user was sliding/dragging
+    navigateTo(`/product/${slug}`);
   };
 
   if (flashProducts.length === 0) return null;
 
   return (
     <section 
-      className="relative w-full overflow-hidden font-['Plus_Jakarta_Sans',sans-serif] select-none group/section"
+      className="relative w-full overflow-hidden font-['Plus_Jakarta_Sans',sans-serif] group/section"
       style={{
         fontSize: 'clamp(11px, 3.6vw, 16px)',
         background: 'linear-gradient(180deg, #e6f5fb, #f4f5f9)',
@@ -174,45 +183,46 @@ export const FlashSaleSection: React.FC = () => {
         '--fs-black': '#0a0a0a'
       } as React.CSSProperties}
     >
-      {/* Left Slider Button */}
+      {/* Left Slider Arrow (visible when scrolled right) */}
       {canScrollLeft && (
         <button
           type="button"
           onClick={() => slide('left')}
           aria-label="Previous flash sale products"
-          className="hidden sm:flex absolute left-2 top-1/2 -translate-y-1/2 z-20 w-8 h-8 rounded-full bg-white/95 text-slate-800 shadow-md border border-slate-200 items-center justify-center hover:bg-white hover:scale-105 active:scale-95 transition-all cursor-pointer"
+          className="absolute left-1 sm:left-2 top-1/2 -translate-y-1/2 z-20 w-7 h-7 sm:w-9 sm:h-9 rounded-full bg-white/95 text-slate-800 shadow-lg border border-slate-200 flex items-center justify-center hover:bg-white hover:scale-105 active:scale-90 transition-all cursor-pointer backdrop-blur-xs"
         >
-          <ChevronLeft className="w-5 h-5 text-slate-700" />
+          <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5 text-slate-700" />
         </button>
       )}
 
-      {/* Right Slider Button */}
+      {/* Right Slider Arrow */}
       {canScrollRight && (
         <button
           type="button"
           onClick={() => slide('right')}
           aria-label="Next flash sale products"
-          className="hidden sm:flex absolute right-2 top-1/2 -translate-y-1/2 z-20 w-8 h-8 rounded-full bg-white/95 text-slate-800 shadow-md border border-slate-200 items-center justify-center hover:bg-white hover:scale-105 active:scale-95 transition-all cursor-pointer"
+          className="absolute right-1 sm:right-2 top-1/2 -translate-y-1/2 z-20 w-7 h-7 sm:w-9 sm:h-9 rounded-full bg-white/95 text-slate-800 shadow-lg border border-slate-200 flex items-center justify-center hover:bg-white hover:scale-105 active:scale-90 transition-all cursor-pointer backdrop-blur-xs"
         >
-          <ChevronRight className="w-5 h-5 text-slate-700" />
+          <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5 text-slate-700" />
         </button>
       )}
 
+      {/* Horizontal Scroll / Slide Container */}
       <div 
         ref={scrollerRef}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
-        onMouseUp={handleMouseUpOrLeave}
-        onMouseLeave={handleMouseUpOrLeave}
-        className="flex flex-nowrap gap-[0.7em] sm:gap-[1.2em] overflow-x-auto no-scrollbar scroll-smooth snap-x snap-mandatory px-[1em] cursor-grab active:cursor-grabbing"
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseUp}
+        className="flex flex-nowrap gap-[0.7em] sm:gap-[1.2em] overflow-x-auto no-scrollbar scroll-smooth snap-x snap-mandatory px-[1em] py-[0.2em] touch-pan-x cursor-grab active:cursor-grabbing"
         style={{
           WebkitOverflowScrolling: 'touch',
-          touchAction: 'pan-x pan-y',
+          overscrollBehaviorX: 'contain',
         }}
       >
         {/* Intro Card */}
         <div 
-          className="flex-none w-[8em] sm:w-[11.5em] rounded-[1em] p-[1em_0.8em] flex flex-col gap-[0.4em] snap-start shadow-[0_0.2em_1em_rgba(0,0,0,0.03)] shrink-0"
+          className="flex-none w-[8em] sm:w-[11.5em] rounded-[1em] p-[1em_0.8em] flex flex-col gap-[0.4em] snap-start shadow-[0_0.2em_1em_rgba(0,0,0,0.03)] shrink-0 select-none"
           style={{ background: 'linear-gradient(135deg, #ffffff, #dff2fa)' }}
         >
           <div className="w-[1.6em] h-[1.6em] text-[#17b2e3] shrink-0">
@@ -248,7 +258,7 @@ export const FlashSaleSection: React.FC = () => {
 
           <button
             onClick={() => navigateTo('/shop', { filter: 'flash-sale' })}
-            className="w-full bg-[var(--fs-blue)] hover:bg-[var(--fs-blue-dark)] text-white text-[0.75em] sm:text-[0.95em] font-black py-[0.7em] rounded-[0.7em] shadow-lg shadow-blue-500/20 transition-all active:scale-[0.96] flex items-center justify-center gap-[0.2em]"
+            className="w-full bg-[var(--fs-blue)] hover:bg-[var(--fs-blue-dark)] text-white text-[0.75em] sm:text-[0.95em] font-black py-[0.7em] rounded-[0.7em] shadow-lg shadow-blue-500/20 transition-all active:scale-[0.96] flex items-center justify-center gap-[0.2em] cursor-pointer"
           >
             <span>View All</span>
             <ArrowRight className="w-[1.1em] h-[1.1em]" />
@@ -257,7 +267,11 @@ export const FlashSaleSection: React.FC = () => {
 
         {/* Product Cards */}
         {flashProducts.map((product) => (
-          <FlashProductCard key={product.id} product={product} />
+          <FlashProductCard 
+            key={product.id} 
+            product={product} 
+            onCardClick={() => handleProductClick(product.slug)}
+          />
         ))}
       </div>
     </section>
