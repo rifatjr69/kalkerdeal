@@ -156,9 +156,9 @@ export const ProductCard: React.FC<ProductCardProps> = ({
               disabled={!product.inStock}
               className={`w-full ${
                 product.inStock ? 'bg-[#FF2B74] hover:bg-[#E11D48]' : 'bg-slate-200 cursor-not-allowed'
-              } text-white text-[10px] sm:text-[12px] font-black py-2 rounded-lg transition-all shadow-sm active:scale-[0.98] flex items-center justify-center gap-1.5`}
+              } text-white text-[8px] sm:text-[12px] font-black py-1.5 sm:py-2 rounded-md transition-all shadow-sm active:scale-[0.98] flex items-center justify-center gap-1`}
             >
-              <ShoppingBag className="w-3.5 h-3.5" />
+              <ShoppingBag className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
               <span>Order Now</span>
             </button>
           </div>

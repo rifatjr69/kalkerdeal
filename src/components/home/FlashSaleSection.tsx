@@ -74,38 +74,38 @@ export const FlashSaleSection: React.FC = () => {
         {/* Horizontal Scrollable Container */}
         <div
           ref={scrollerRef}
-          className="flex gap-2 sm:gap-4 overflow-x-auto no-scrollbar scroll-smooth snap-x pb-2 px-1"
+          className="flex gap-1 sm:gap-4 overflow-x-auto no-scrollbar scroll-smooth snap-x pb-2 px-1"
         >
           {/* Header Card - First element in the scroll on mobile */}
-          <div className="w-[145px] sm:w-[240px] lg:w-[260px] shrink-0 bg-white rounded-2xl border border-slate-100 p-3 sm:p-5 flex flex-col justify-start shadow-[0_4px_20px_rgba(0,0,0,0.03)] snap-start">
-            <div className="space-y-2 sm:space-y-3">
-              <div className="w-7 h-7 sm:w-10 sm:h-10 rounded-full bg-slate-50 text-[#0EA5E9] flex items-center justify-center">
-                <Zap className="w-4 h-4 sm:w-5 sm:h-5 fill-[#0EA5E9]" />
+          <div className="w-[115px] sm:w-[240px] lg:w-[260px] shrink-0 bg-white rounded-2xl border border-slate-100 p-2 sm:p-5 flex flex-col justify-start shadow-[0_4px_20px_rgba(0,0,0,0.03)] snap-start">
+            <div className="space-y-1 sm:space-y-3">
+              <div className="w-5 h-5 sm:w-10 sm:h-10 rounded-full bg-slate-50 text-[#0EA5E9] flex items-center justify-center">
+                <Zap className="w-3 h-3 sm:w-5 sm:h-5 fill-[#0EA5E9]" />
               </div>
 
               <div>
-                <h2 className="text-[17px] sm:text-2xl font-black text-[#1E3A8A] italic tracking-tighter leading-none mb-1">
+                <h2 className="text-[12px] sm:text-2xl font-black text-[#1E3A8A] italic tracking-tighter leading-none mb-0.5">
                   FLASH SALE
                 </h2>
-                <div className="text-[#0EA5E9] text-[10px] sm:text-[13px] font-black italic tracking-tight mb-1.5 sm:mb-2">
+                <div className="text-[#0EA5E9] text-[7px] sm:text-[13px] font-black italic tracking-tight mb-0.5 sm:mb-2">
                   UPTO 23% OFF
                 </div>
-                <p className="text-[10px] sm:text-[12px] font-bold text-slate-500">
+                <p className="text-[7px] sm:text-[12px] font-bold text-slate-500">
                   Don't miss out
                 </p>
               </div>
 
               {/* Timer Boxes */}
-              <div className="flex items-center gap-1 sm:gap-1.5 py-1">
-                <div className="bg-[#1A1A1A] text-white font-bold text-[10px] sm:text-[14px] px-1.5 py-1 sm:px-2 sm:py-1.5 rounded-lg tabular-nums">
+              <div className="flex items-center gap-0.5 sm:gap-1.5 py-0.5 sm:py-1">
+                <div className="bg-[#1A1A1A] text-white font-bold text-[7px] sm:text-[14px] px-1 py-0.5 sm:px-2 sm:py-1.5 rounded-md sm:rounded-lg tabular-nums">
                   {formatNumber(timeLeft.hours)}
                 </div>
-                <span className="font-black text-[#E11D48] text-[10px] sm:text-sm">:</span>
-                <div className="bg-[#1A1A1A] text-white font-bold text-[10px] sm:text-[14px] px-1.5 py-1 sm:px-2 sm:py-1.5 rounded-lg tabular-nums">
+                <span className="font-black text-[#E11D48] text-[7px] sm:text-sm">:</span>
+                <div className="bg-[#1A1A1A] text-white font-bold text-[7px] sm:text-[14px] px-1 py-0.5 sm:px-2 sm:py-1.5 rounded-md sm:rounded-lg tabular-nums">
                   {formatNumber(timeLeft.minutes)}
                 </div>
-                <span className="font-black text-[#E11D48] text-[10px] sm:text-sm">:</span>
-                <div className="bg-[#1A1A1A] text-white font-bold text-[10px] sm:text-[14px] px-1.5 py-1 sm:px-2 sm:py-1.5 rounded-lg tabular-nums">
+                <span className="font-black text-[#E11D48] text-[7px] sm:text-sm">:</span>
+                <div className="bg-[#1A1A1A] text-white font-bold text-[7px] sm:text-[14px] px-1 py-0.5 sm:px-2 sm:py-1.5 rounded-md sm:rounded-lg tabular-nums">
                   {formatNumber(timeLeft.seconds)}
                 </div>
               </div>
@@ -114,16 +114,16 @@ export const FlashSaleSection: React.FC = () => {
             <button
               type="button"
               onClick={() => navigateTo('/shop', { filter: 'flash-sale' })}
-              className="mt-4 sm:mt-6 bg-[#14B8A6] sm:bg-[#0EA5E9] bg-[#0EA5E9] hover:bg-[#0284C7] text-white font-black text-[11px] sm:text-[14px] py-2 sm:py-3 px-4 rounded-xl shadow-sm transition-all flex items-center justify-center gap-1.5 cursor-pointer w-full"
+              className="mt-2 sm:mt-6 bg-[#0EA5E9] hover:bg-[#0284C7] text-white font-black text-[8px] sm:text-[14px] py-1 sm:py-3 px-1.5 sm:px-4 rounded-lg sm:rounded-xl shadow-sm transition-all flex items-center justify-center gap-0.5 cursor-pointer w-full"
             >
               <span>View All</span>
-              <ArrowRight className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              <ArrowRight className="w-2 h-2 sm:w-4 sm:h-4" />
             </button>
           </div>
 
           {/* Product Cards */}
           {flashProducts.map((product) => (
-            <div key={product.id} className="w-[170px] sm:w-[240px] lg:w-[260px] shrink-0 snap-start">
+            <div key={product.id} className="w-[120px] sm:w-[240px] lg:w-[260px] shrink-0 snap-start">
               <ProductCard product={product} showSoldProgress={true} />
             </div>
           ))}
