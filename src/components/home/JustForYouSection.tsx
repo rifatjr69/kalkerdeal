@@ -21,8 +21,8 @@ export const JustForYouSection: React.FC = () => {
           Just For You
         </h2>
 
-        {/* Multi-row Product Grid matching Screenshot 6 */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4 mb-8">
+        {/* Multi-row Product Grid */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 sm:gap-6 mb-8">
           {visibleProducts.map((product) => (
             <ProductCard key={product.id} product={product} />
           ))}

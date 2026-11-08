@@ -97,10 +97,10 @@ export const FlashSaleSection: React.FC = () => {
     <section 
       className="w-full overflow-hidden font-['Plus_Jakarta_Sans',sans-serif]"
       style={{
-        fontSize: 'clamp(13px, 3.9vw, 17px)',
+        fontSize: 'clamp(14px, 4.2vw, 18px)',
         background: 'linear-gradient(180deg, #e6f5fb, #f4f5f9)',
-        paddingTop: '1.4em',
-        paddingBottom: '1.8em',
+        paddingTop: '1.6em',
+        paddingBottom: '2em',
         '--fs-bg-1': '#e6f5fb',
         '--fs-bg-2': '#f4f5f9',
         '--fs-navy': '#0b1f4d',
@@ -115,50 +115,50 @@ export const FlashSaleSection: React.FC = () => {
     >
       <div 
         ref={scrollerRef}
-        className="flex gap-[0.9em] overflow-x-auto no-scrollbar scroll-smooth snap-x snap-mandatory px-[1.2em]"
+        className="flex gap-[1.1em] overflow-x-auto no-scrollbar scroll-smooth snap-x snap-mandatory px-[1.4em]"
       >
         {/* Intro Card */}
         <div 
-          className="flex-none w-[9.8em] rounded-[1.1em] p-[1.1em_0.95em] flex flex-col gap-[0.55em] snap-start shadow-[0_0.4em_1.5em_rgba(0,0,0,0.03)]"
+          className="flex-none w-[11.5em] rounded-[1.2em] p-[1.2em_1em] flex flex-col gap-[0.6em] snap-start shadow-[0_0.4em_1.5em_rgba(0,0,0,0.03)]"
           style={{ background: 'linear-gradient(135deg, #ffffff, #dff2fa)' }}
         >
-          <div className="w-[1.9em] h-[1.9em] text-[#17b2e3] shrink-0">
+          <div className="w-[2.2em] h-[2.2em] text-[#17b2e3] shrink-0">
             <Zap className="w-full h-full fill-current" />
           </div>
 
           <div className="min-h-0">
             <h2 
-              className="text-[2em] font-[800] italic uppercase leading-[0.9] text-[var(--fs-navy)]"
+              className="text-[2.2em] font-[800] italic uppercase leading-[0.9] text-[var(--fs-navy)]"
               style={{ textShadow: '0.07em 0.07em 0 #8fd8f2' }}
             >
               FLASH<br />SALE
             </h2>
-            <div className="text-[var(--fs-blue-dark)] text-[0.85em] font-bold italic tracking-tight mt-[0.3em] uppercase">
+            <div className="text-[var(--fs-blue-dark)] text-[0.9em] font-bold italic tracking-tight mt-[0.4em] uppercase">
               UPTO 23% OFF
             </div>
-            <p className="text-[var(--fs-ink)] text-[0.75em] font-medium mt-[0.2em]">
+            <p className="text-[var(--fs-ink)] text-[0.8em] font-medium mt-[0.3em]">
               Don't miss out
             </p>
           </div>
 
           {/* Countdown HH:MM:SS */}
-          <div className="flex items-center gap-[0.3em] mt-auto">
-            <div className="bg-[var(--fs-black)] text-white font-bold text-[0.85em] px-[0.45em] py-[0.3em] rounded-[0.5em] tabular-nums">
+          <div className="flex items-center gap-[0.4em] mt-auto">
+            <div className="bg-[var(--fs-black)] text-white font-bold text-[0.9em] px-[0.5em] py-[0.35em] rounded-[0.5em] tabular-nums">
               {formatNumber(timeLeft.hours)}
             </div>
-            <span className="font-bold text-[var(--fs-pink)] text-[0.8em]">:</span>
-            <div className="bg-[var(--fs-black)] text-white font-bold text-[0.85em] px-[0.45em] py-[0.3em] rounded-[0.5em] tabular-nums">
+            <span className="font-bold text-[var(--fs-pink)] text-[0.9em]">:</span>
+            <div className="bg-[var(--fs-black)] text-white font-bold text-[0.9em] px-[0.5em] py-[0.35em] rounded-[0.5em] tabular-nums">
               {formatNumber(timeLeft.minutes)}
             </div>
-            <span className="font-bold text-[var(--fs-pink)] text-[0.8em]">:</span>
-            <div className="bg-[var(--fs-black)] text-white font-bold text-[0.85em] px-[0.45em] py-[0.3em] rounded-[0.5em] tabular-nums">
+            <span className="font-bold text-[var(--fs-pink)] text-[0.9em]">:</span>
+            <div className="bg-[var(--fs-black)] text-white font-bold text-[0.9em] px-[0.5em] py-[0.35em] rounded-[0.5em] tabular-nums">
               {formatNumber(timeLeft.seconds)}
             </div>
           </div>
 
           <button
             onClick={() => navigateTo('/shop', { filter: 'flash-sale' })}
-            className="w-full bg-[var(--fs-blue)] hover:bg-[var(--fs-blue-dark)] text-white text-[0.85em] font-semibold py-[0.8em] rounded-[0.7em] shadow-md transition-all active:scale-[0.97] flex items-center justify-center gap-[0.3em]"
+            className="w-full bg-[var(--fs-blue)] hover:bg-[var(--fs-blue-dark)] text-white text-[0.9em] font-semibold py-[0.9em] rounded-[0.8em] shadow-md transition-all active:scale-[0.97] flex items-center justify-center gap-[0.4em]"
           >
             <span>View All</span>
             <ArrowRight className="w-[1.2em] h-[1.2em]" />
@@ -167,7 +167,9 @@ export const FlashSaleSection: React.FC = () => {
 
         {/* Product Cards */}
         {flashProducts.map((product) => (
-          <FlashProductCard key={product.id} product={product} />
+          <div key={product.id} className="w-[11.5em] flex-none">
+            <FlashProductCard product={product} />
+          </div>
         ))}
       </div>
     </section>
