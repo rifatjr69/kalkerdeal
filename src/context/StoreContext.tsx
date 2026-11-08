@@ -524,6 +524,13 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       })
       .subscribe();
 
+    const productsChannel = supabase
+      .channel('public:products')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, () => {
+        refreshProducts();
+      })
+      .subscribe();
+
     const handleUpdate = () => {
       refreshSettings();
       refreshProducts();
@@ -540,6 +547,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       supabase.removeChannel(settingsChannel);
       supabase.removeChannel(zonesChannel);
       supabase.removeChannel(bannersChannel);
+      supabase.removeChannel(productsChannel);
       window.removeEventListener('settings_updated', handleUpdate);
       window.removeEventListener('products_updated', handleUpdate);
       window.removeEventListener('banners_updated', handleUpdate);

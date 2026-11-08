@@ -3052,20 +3052,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
     const isExistingDbProduct = isValidUuid(form.id);
 
-    if (!validCategoryId) {
-      notify('অনুগ্রহ করে একটি ক্যাটাগরি নির্বাচন করুন', false);
-      setSaving(false);
-      return;
-    }
-
-    // Resolve actual slug from DB
-    let categorySlug = '';
-    const { data: catData } = await supabase.from('categories').select('slug').eq('id', validCategoryId).maybeSingle();
-    if (catData?.slug) {
-        categorySlug = catData.slug;
-    } else {
-        categorySlug = catList.find(c => c.id === validCategoryId)?.slug || form.category_id?.toLowerCase().replace(/\s+/g, '-');
-    }
+    // Do not block saving if category is not selected; allow nullable category_id
+    const finalCategoryId = validCategoryId || (form.category_id && isValidUuid(form.category_id) ? form.category_id : null);
 
     const currentPrice = parseFloat(form.price) || 0;
     const oldPriceVal = form.old_price && form.old_price.trim() !== '' ? parseFloat(form.old_price) : null;
@@ -3073,18 +3061,18 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       ? Math.round(((oldPriceVal - currentPrice) / oldPriceVal) * 100)
       : 0;
 
-    // Immediately persist price overrides to localStorage so changes never disappear on refresh
+    // Immediately persist price overrides to localStorage as client-side backup
     saveLocalProductPriceOverride(form.id, form.name.trim(), {
       price: currentPrice,
       old_price: oldPriceVal,
       discount_percent: discountPct > 0 ? discountPct : null,
     });
 
+    // Exact schema matching public.products columns in Supabase:
+    // (Notice: 'title', 'title_bn', 'image', 'category_slug' do NOT exist in the table and cause PGRST204 errors)
     const payload: Record<string, any> = {
       name: form.name.trim(),
-      title: form.name.trim(),
       name_bn: form.name_bn.trim() || form.name.trim(),
-      title_bn: form.name_bn.trim() || form.name.trim(),
       description: form.description.trim() || '',
       description_bn: form.description_bn.trim() || '',
       price: currentPrice,
@@ -3092,12 +3080,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       discount_percent: discountPct,
       stock: parseInt(form.stock || '0', 10),
       image_url: primaryImage,
-      image: primaryImage,
       images: allImages,
-      category_id: validCategoryId,
-      category_slug: categorySlug,
+      category_id: finalCategoryId,
       is_flash_sale: Boolean(form.is_flash_sale),
     };
+
+    if (validSubCategoryId) {
+      payload.subcategory_id = validSubCategoryId;
+    }
 
     if (!isExistingDbProduct) {
        let newSlug = form.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
@@ -3108,32 +3098,33 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
        payload.slug = newSlug;
     }
     
-    console.log('Saving product, payload:', payload);
+    console.log('Saving product to Supabase, payload:', payload);
 
     const saveAttempt = async (dataToSave: Record<string, any>) => {
       if (isExistingDbProduct && form.id) {
         return await supabase.from('products').update(dataToSave).eq('id', form.id).select('id').maybeSingle();
       } else {
+        // If form.id is not UUID, check if product already exists by exact name or slug
+        const { data: matched } = await supabase
+          .from('products')
+          .select('id')
+          .eq('name', form.name.trim())
+          .maybeSingle();
+
+        if (matched?.id) {
+          return await supabase.from('products').update(dataToSave).eq('id', matched.id).select('id').maybeSingle();
+        }
         return await supabase.from('products').insert(dataToSave).select('id').maybeSingle();
       }
     };
 
     let result = await saveAttempt(payload);
 
-    // If Supabase returned an error because old_price or discount_percent column is missing in DB schema
     if (result.error) {
-      const errMsg = (result.error.message || '').toLowerCase();
-      if (errMsg.includes('old_price') || errMsg.includes('discount_percent') || errMsg.includes('column')) {
-        console.warn('Supabase DB table might be missing old_price/discount_percent column. Retrying with core fields while preserving price in local storage:', result.error.message);
-        const fallbackPayload = { ...payload };
-        delete fallbackPayload.old_price;
-        delete fallbackPayload.discount_percent;
-        result = await saveAttempt(fallbackPayload);
-      }
-    }
-
-    if (result.error) {
-      console.warn('Supabase save error (local overrides preserved):', result.error.message);
+      console.error('Supabase product save error:', result.error);
+      notify(`ডাটাবেজ সেভ ত্রুটি: ${result.error.message}`, false);
+    } else {
+      console.log('Supabase product successfully saved to cloud DB:', result.data);
     }
 
     const assignedId = result.data?.id;
@@ -3148,7 +3139,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     // Broadcast update across the whole application
     window.dispatchEvent(new Event('products_updated'));
 
-    notify(form.id ? 'প্রোডাক্ট সফলভাবে আপডেট হয়েছে!' : 'নতুন প্রোডাক্ট সফলভাবে যোগ হয়েছে!', true);
+    notify(form.id ? 'প্রোডাক্ট ডাটাবেজে সফলভাবে আপডেট হয়েছে!' : 'নতুন প্রোডাক্ট সফলভাবে যোগ হয়েছে!', true);
     setSaving(false);
 
     setShowForm(false);

@@ -163,11 +163,6 @@ export const ProductCard: React.FC<ProductCardProps> = ({
             </span>
           </div>
 
-          {/* FREE delivery indicator matching screenshot */}
-          <p className="text-[10px] sm:text-[11px] text-slate-400 font-medium mt-0.5">
-            FREE delivery
-          </p>
-
           {/* Order Now Button (Light Cyan/Teal background with Darker Cyan text) matching screenshot */}
           <div className="mt-2.5">
             <button
