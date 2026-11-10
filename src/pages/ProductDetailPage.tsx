@@ -132,11 +132,27 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ slug }) =>
         {/* Product Purchase Module Split */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-2 lg:gap-12 items-start mb-4 lg:mb-16">
           {/* Left Column: Vertical Thumbnails + Big Preview */}
-          <div className="lg:col-span-7 flex flex-col-reverse sm:flex-row gap-2 sm:gap-4 items-center sm:items-start">
+          <div
+            className="lg:col-span-7 flex flex-col-reverse sm:flex-row gap-2 sm:gap-4 items-center sm:items-start"
+            onTouchStart={(e) => {
+              (e.currentTarget as any).startX = e.touches[0].clientX;
+            }}
+            onTouchEnd={(e) => {
+              const diff = e.changedTouches[0].clientX - (e.currentTarget as any).startX;
+              if (Math.abs(diff) > 50) {
+                const currentIndex = galleryThumbnails.indexOf(selectedImage);
+                if (diff > 0) { // Swipe Right
+                  setSelectedImage(galleryThumbnails[Math.max(0, currentIndex - 1)]);
+                } else { // Swipe Left
+                  setSelectedImage(galleryThumbnails[Math.min(galleryThumbnails.length - 1, currentIndex + 1)]);
+                }
+              }
+            }}
+          >
             {/* Vertical Thumbnails */}
             <div className="flex sm:flex-col gap-2 shrink-0 overflow-x-auto no-scrollbar sm:overflow-visible pb-1 sm:pb-0">
               {galleryThumbnails.map((img: string, idx: number) => {
-                const isSelected = selectedImage === img && idx === 0;
+                const isSelected = selectedImage === img;
                 return (
                   <button
                     key={idx}
