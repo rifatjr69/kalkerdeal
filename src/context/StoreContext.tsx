@@ -241,6 +241,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             hoverImage: item.hover_image,
             images: Array.isArray(item.images) && item.images.length > 0 ? item.images : [item.image_url || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=600&q=80'],
             category: item.category || 'general',
+            category_id: item.category_id,
             subCategory: item.subcategory || item.subcategory_id,
             brand: item.brand_name || 'Cart App',
             isFlashSale: Boolean(item.is_flash_sale),

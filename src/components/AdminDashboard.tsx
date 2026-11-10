@@ -699,6 +699,26 @@ ON CONFLICT (id) DO NOTHING;
 -- 20. RELOAD SCHEMA CACHE
 NOTIFY pgrst, 'reload schema';`;
 
+// DB তে কোনো কলাম না থাকলে সেই কলাম বাদ দিয়ে আবার চেষ্টা করে
+async function writeWithColumnFallback(
+  run: (body: Record<string, any>) => PromiseLike<{ data: any; error: any }>,
+  payload: Record<string, any>
+): Promise<{ data: any; error: any }> {
+  const body = { ...payload };
+  let res = await run(body);
+  let retries = 8;
+  while (res.error && retries-- > 0) {
+    const msg: string = res.error.message || '';
+    const m = msg.match(/Could not find the '([^']+)' column/i) || msg.match(/column "([^"]+)" of relation "[^"]+" does not exist/i);
+    const col = m ? m[1] : null;
+    if (col && col in body) {
+      delete body[col];
+      res = await run(body);
+    } else break;
+  }
+  return res;
+}
+
 /* --------------------------- Small UI pieces ----------------------- */
 const Card: React.FC<{ className?: string; children: React.ReactNode }> = ({ className = '', children }) => (
   <div className={`min-w-0 rounded-2xl bg-white border border-slate-200/80 shadow-[0_1px_2px_rgba(15,23,42,0.04)] p-4 sm:p-5 ${className}`}>{children}</div>
@@ -1159,7 +1179,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 }) => {
   const prods = enrichProducts(products as unknown as Product[]) as unknown as ProductLite[];
   const cats = categories as unknown as CategoryLite[];
-  const catName = (id?: string | null) => { const c = cats.find((x) => x.id === id); return c ? (c.name || c.name_bn || '—') : '—'; };
+  const catName = (id?: string | null) => {
+    if (!id) return '—';
+    const c = (catList as any[]).find((x) => x.id === id || x.slug === id) || cats.find((x) => x.id === id);
+    return c ? (c.name_bn || c.name || '—') : '—';
+  };
 
   // URL query, hash বা localStorage থেকে শুরুর ট্যাব পড়া হয়
   const getInitialTab = (): Page => {
@@ -2228,46 +2252,29 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     let savedInDb = false;
 
     try {
-      if (editingCategoryId) {
-        if (isValidUuid(editingCategoryId)) {
-          const { data, error } = await supabase
-            .from('categories')
-            .update(payload)
-            .eq('id', editingCategoryId)
-            .select('*')
-            .maybeSingle();
+      const res = editingCategoryId && isValidUuid(editingCategoryId)
+        ? await writeWithColumnFallback(
+            (body) => supabase.from('categories').update(body).eq('id', editingCategoryId).select('*').maybeSingle(),
+            payload
+          )
+        : await writeWithColumnFallback(
+            (body) => supabase.from('categories').insert([body]).select('*').maybeSingle(),
+            payload
+          );
 
-          if (!error && data) {
-            savedCategory = data;
-            savedInDb = true;
-          }
-        }
-      } else {
-        const { data, error } = await supabase
-          .from('categories')
-          .insert([payload])
-          .select('*')
-          .maybeSingle();
-
-        if (!error && data) {
-          savedCategory = data;
-          savedInDb = true;
-        }
+      if (res.error || !res.data) {
+        console.error('Category save error:', res.error);
+        notify('ক্যাটাগরি ডাটাবেজে সেভ হয়নি: ' + (res.error?.message || 'Unknown error'), false);
+        setCategorySaving(false);
+        return;
       }
+      savedCategory = res.data;
+      savedInDb = true;
     } catch (err: any) {
       console.error('Supabase category operation failed:', err);
-      notify(`ক্যাটাগরি সেভ করতে সমস্যা হয়েছে: ${err.message || 'Unknown error'}`, false);
+      notify(`ক্যাটাগরি সেভ করতে সমস্যা হয়েছে: ${err?.message || 'Unknown error'}`, false);
       setCategorySaving(false);
       return;
-    }
-
-    if (!savedCategory) {
-      const generatedId = editingCategoryId || (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `cat-${Date.now()}`);
-      savedCategory = {
-        id: generatedId,
-        ...payload,
-        created_at: new Date().toISOString()
-      };
     }
 
     setCatList((prev) => {
@@ -2295,6 +2302,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     setEditingCategoryId(null);
     setCategorySaving(false);
 
+    try { window.dispatchEvent(new Event('categories_updated')); } catch { /* ignore */ }
     if (onRefreshCategories) onRefreshCategories();
     if (onRefreshProducts) onRefreshProducts();
   };
@@ -3063,12 +3071,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       image_url: primaryImage,
       images: allImages,
       category_id: finalCategoryId,
+      subcategory_id: validSubCategoryId,
       is_flash_sale: Boolean(form.is_flash_sale),
+      enable_size: Boolean(form.enable_size),
+      enable_color: Boolean(form.enable_color),
+      sizes: form.sizes || [],
+      colors: form.colors || [],
     };
-
-    if (validSubCategoryId) {
-      payload.subcategory_id = validSubCategoryId;
-    }
 
     if (!isExistingDbProduct) {
        let newSlug = form.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
@@ -3081,32 +3090,22 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     
     console.log('Saving product to Supabase, payload:', payload);
 
-    const saveAttempt = async (dataToSave: Record<string, any>) => {
+    const saveAttempt = (dataToSave: Record<string, any>) => {
       if (isExistingDbProduct && form.id) {
-        return await supabase.from('products').update(dataToSave).eq('id', form.id).select('id').maybeSingle();
-      } else {
-        // If form.id is not UUID, check if product already exists by exact name or slug
-        const { data: matched } = await supabase
-          .from('products')
-          .select('id')
-          .eq('name', form.name.trim())
-          .maybeSingle();
-
-        if (matched?.id) {
-          return await supabase.from('products').update(dataToSave).eq('id', matched.id).select('id').maybeSingle();
-        }
-        return await supabase.from('products').insert(dataToSave).select('id').maybeSingle();
+        return supabase.from('products').update(dataToSave).eq('id', form.id).select('id').maybeSingle();
       }
+      return supabase.from('products').insert(dataToSave).select('id').maybeSingle();
     };
 
-    let result = await saveAttempt(payload);
+    const result = await writeWithColumnFallback(saveAttempt, payload);
 
     if (result.error) {
       console.error('Supabase product save error:', result.error);
       notify(`ডাটাবেজ সেভ ত্রুটি: ${result.error.message}`, false);
-    } else {
-      console.log('Supabase product successfully saved to cloud DB:', result.data);
+      setSaving(false);
+      return;
     }
+    console.log('Supabase product successfully saved to cloud DB:', result.data);
 
     const assignedId = result.data?.id;
 
@@ -4247,14 +4246,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     <textarea placeholder="Description" value={form.description || ''} onChange={(e) => setForm({ ...form, description: e.target.value })} className={inputCls + ' col-span-full'} rows={3} />
                     <div className="flex items-center gap-2">
                       <select
+                        required
                         value={form.category_id}
                         onChange={(e) => setForm({ ...form, category_id: e.target.value, subcategory_id: '' })}
                         className={inputCls + ' flex-1'}
                       >
-                        <option value="">ক্যাটাগরি নির্বাচন করুন (No category)</option>
+                        <option value="">ক্যাটাগরি নির্বাচন করুন *</option>
                         {catList.filter(c => c.is_active !== false).map((c) => (
                           <option key={c.id} value={c.id}>
-                            {c.name || c.name_bn} / {c.name_bn || c.name}
+                            {c.name_bn || c.name}
                           </option>
                         ))}
                       </select>
@@ -4268,8 +4268,26 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                         title="নতুন ক্যাটাগরি তৈরি করুন"
                       >
                         <Plus className="w-3.5 h-3.5" />
-                        <span className="hidden sm:inline">নতুন ক্যাটাগরি</span>
+                        <span className="hidden sm:inline">নতুন</span>
                       </button>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">সাব-ক্যাটাগরি (ঐচ্ছিক)</label>
+                      <select
+                        value={form.subcategory_id}
+                        onChange={(e) => setForm({ ...form, subcategory_id: e.target.value })}
+                        className={inputCls + ' flex-1'}
+                      >
+                        <option value="">সাব-ক্যাটাগরি নির্বাচন করুন</option>
+                        {subCatList
+                          .filter(sc => sc.category_id === form.category_id && sc.is_active !== false)
+                          .map((sc) => (
+                            <option key={sc.id} value={sc.id}>
+                              {sc.name_bn || sc.name}
+                            </option>
+                          ))}
+                      </select>
                     </div>
 
 

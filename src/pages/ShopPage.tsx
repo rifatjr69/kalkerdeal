@@ -5,10 +5,10 @@ import {
 } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 import { ProductCard } from '../components/common/ProductCard';
-import { CATEGORIES, BRANDS } from '../data/mockProducts';
+import { BRANDS } from '../data/mockProducts';
 
 export const ShopPage: React.FC = () => {
-  const { products, routeParams, navigateTo, searchQuery, setSearchQuery } = useStore();
+  const { products, categories, routeParams, navigateTo, searchQuery, setSearchQuery } = useStore();
 
   // URL / route params
   const initialCategory = routeParams.category || '';
@@ -17,7 +17,7 @@ export const ShopPage: React.FC = () => {
   const initialFilter = routeParams.filter || '';
 
   // Local filter states
-  const [selectedCategory, setSelectedCategory] = useState<string>(initialCategory);
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string>('');
   const [selectedSubCategory, setSelectedSubCategory] = useState<string>(initialSubCategory);
   const [selectedBrands, setSelectedBrands] = useState<string[]>(initialBrand ? [initialBrand] : []);
   const [priceRange, setPriceRange] = useState<[number, number]>([0, 100000]);
@@ -32,7 +32,8 @@ export const ShopPage: React.FC = () => {
   // Sync state if routeParams change
   useEffect(() => {
     if (routeParams.category !== undefined) {
-      setSelectedCategory(routeParams.category);
+      const cat = categories.find(c => c.slug === routeParams.category);
+      setSelectedCategoryId(cat?.id || '');
     }
     if (routeParams.subCategory !== undefined) {
       setSelectedSubCategory(routeParams.subCategory);
@@ -40,18 +41,7 @@ export const ShopPage: React.FC = () => {
     if (routeParams.brand !== undefined) {
       setSelectedBrands(routeParams.brand ? [routeParams.brand] : []);
     }
-    if (routeParams.filter) {
-      if (routeParams.filter === 'lowest_price') {
-        setSortBy('price-asc');
-      } else if (routeParams.filter === 'latest_drops') {
-        // Handled in useMemo
-      } else if (routeParams.filter === 'flash-sale') {
-        // Handled in useMemo
-      } else if (routeParams.filter === 'glow_go' || routeParams.filter === 'skin_care') {
-        setSelectedCategory('health-beauty');
-      }
-    }
-  }, [routeParams]);
+  }, [routeParams, categories]);
 
   // Max price calculation from products
   const maxAvailablePrice = useMemo(() => {
@@ -60,10 +50,11 @@ export const ShopPage: React.FC = () => {
 
   // Filtering products
   const filteredProducts = useMemo(() => {
-    return products.filter((p) => {
+    console.log('Filtering. Category ID:', selectedCategoryId, 'Products count:', products.length);
+    const filtered = products.filter((p) => {
       // Category filter
-      if (selectedCategory && selectedCategory !== 'all') {
-        if (p.category !== selectedCategory) return false;
+      if (selectedCategoryId && selectedCategoryId !== 'all') {
+        if (p.category_id !== selectedCategoryId) return false;
       }
       // Sub-category filter
       if (selectedSubCategory) {
@@ -106,9 +97,11 @@ export const ShopPage: React.FC = () => {
       if (sortBy === 'discount') return (b.discountPercent || 0) - (a.discountPercent || 0);
       return 0; // default
     });
+    console.log('Filtered products count:', filtered.length);
+    return filtered;
   }, [
     products,
-    selectedCategory,
+    selectedCategoryId,
     selectedSubCategory,
     selectedBrands,
     priceRange,
@@ -136,7 +129,7 @@ export const ShopPage: React.FC = () => {
   };
 
   const hasActiveFilters =
-    Boolean(selectedCategory) ||
+    Boolean(selectedCategoryId) ||
     Boolean(selectedSubCategory) ||
     selectedBrands.length > 0 ||
     priceRange[0] > 0 ||
@@ -147,7 +140,9 @@ export const ShopPage: React.FC = () => {
     freeDeliveryOnly ||
     Boolean(searchQuery);
 
-  const currentCategoryObj = CATEGORIES.find((c) => c.slug === selectedCategory);
+  const activeCategory = useMemo(() => 
+    categories.find(c => c.id === selectedCategoryId),
+  [categories, selectedCategoryId]);
 
   return (
     <div className="bg-[#F8FAFC] min-h-screen py-5 sm:py-7">
@@ -169,11 +164,11 @@ export const ShopPage: React.FC = () => {
               setSelectedSubCategory('');
               navigateTo('/shop');
             }}
-            className={selectedCategory ? 'hover:text-[#00A5A8]' : 'text-slate-900 font-semibold'}
+            className={selectedCategoryId ? 'hover:text-[#00A5A8]' : 'text-slate-900 font-semibold'}
           >
             Shop
           </button>
-          {currentCategoryObj && (
+          {activeCategory && (
             <>
               <ChevronRight className="w-3.5 h-3.5 text-slate-300" />
               <button
@@ -181,7 +176,7 @@ export const ShopPage: React.FC = () => {
                 onClick={() => setSelectedSubCategory('')}
                 className={selectedSubCategory ? 'hover:text-[#00A5A8]' : 'text-slate-900 font-semibold'}
               >
-                {currentCategoryObj.name}
+                {activeCategory.name}
               </button>
             </>
           )}
@@ -199,8 +194,8 @@ export const ShopPage: React.FC = () => {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6 bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/80 shadow-xs">
           <div>
             <h1 className="text-xl sm:text-2xl font-bold text-slate-900">
-              {selectedCategory
-                ? currentCategoryObj?.name || 'Category'
+              {activeCategory
+                ? activeCategory.name
                 : searchQuery
                 ? `Results for "${searchQuery}"`
                 : 'All Products'}
@@ -273,14 +268,15 @@ export const ShopPage: React.FC = () => {
         {hasActiveFilters && (
           <div className="flex items-center gap-2 flex-wrap mb-5">
             <span className="text-xs text-slate-400 font-medium">Active Filters:</span>
-            {selectedCategory && (
+            {activeCategory && (
               <span className="inline-flex items-center gap-1.5 bg-pink-50 border border-pink-200 text-[#FF2B74] text-xs font-semibold px-2.5 py-1 rounded-full">
-                {currentCategoryObj?.name || selectedCategory}
+                {activeCategory.name}
                 <button
                   type="button"
                   onClick={() => {
-                    setSelectedCategory('');
+                    setSelectedCategoryId('');
                     setSelectedSubCategory('');
+                    navigateTo('/shop');
                   }}
                   className="hover:opacity-70"
                 >
@@ -420,7 +416,7 @@ export const ShopPage: React.FC = () => {
                     setSelectedSubCategory('');
                   }}
                   className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs transition text-left ${
-                    !selectedCategory
+                    !selectedCategoryId
                       ? 'bg-pink-50 text-[#FF2B74] font-bold'
                       : 'text-slate-600 hover:bg-slate-50'
                   }`}
@@ -428,16 +424,17 @@ export const ShopPage: React.FC = () => {
                   <span>All Categories</span>
                   <span className="text-[11px] text-slate-400">{products.length}</span>
                 </button>
-                {CATEGORIES.map((cat) => {
-                  const count = products.filter((p) => p.category === cat.slug).length;
-                  const isSelected = selectedCategory === cat.slug;
+                {categories.map((cat) => {
+                  const count = products.filter((p) => p.category_id === cat.id).length;
+                  const isSelected = selectedCategoryId === cat.id;
                   return (
                     <div key={cat.id}>
                       <button
                         type="button"
                         onClick={() => {
-                          setSelectedCategory(cat.slug);
+                          setSelectedCategoryId(cat.id);
                           setSelectedSubCategory('');
+                          navigateTo(`/shop?category=${cat.slug}`);
                         }}
                         className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs transition text-left ${
                           isSelected
@@ -454,12 +451,16 @@ export const ShopPage: React.FC = () => {
                         <div className="ml-3 pl-2 border-l border-slate-200 mt-1 space-y-1">
                           {cat.subCategories.map((sub) => {
                             const isSubSelected = selectedSubCategory === sub.slug;
+                            // Note: We need a mapping from sub-slug to sub-id. Assuming product.subCategory is sub-slug string
                             const subCount = products.filter((p) => p.subCategory === sub.slug).length;
                             return (
                               <button
                                 key={sub.slug}
                                 type="button"
-                                onClick={() => setSelectedSubCategory(isSubSelected ? '' : sub.slug)}
+                                onClick={() => {
+                                  setSelectedSubCategory(isSubSelected ? '' : sub.slug);
+                                  navigateTo(`/shop?category=${cat.slug}&subCategory=${isSubSelected ? '' : sub.slug}`);
+                                }}
                                 className={`w-full flex items-center justify-between px-2 py-1 rounded text-[11px] transition text-left ${
                                   isSubSelected
                                     ? 'text-[#00A5A8] font-bold bg-teal-50'
@@ -683,10 +684,13 @@ export const ShopPage: React.FC = () => {
               <div className="mb-6">
                 <h4 className="text-xs font-bold text-slate-800 mb-2">Category</h4>
                 <select
-                  value={selectedCategory}
+                  value={selectedCategoryId}
                   onChange={(e) => {
-                    setSelectedCategory(e.target.value);
+                    setSelectedCategoryId(e.target.value);
                     setSelectedSubCategory('');
+                    const cat = categories.find(c => c.id === e.target.value);
+                    if (cat) navigateTo(`/shop?category=${cat.slug}`);
+                    else navigateTo('/shop');
                   }}
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs text-slate-800 focus:outline-none"
                 >

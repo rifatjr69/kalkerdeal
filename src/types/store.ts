@@ -16,6 +16,7 @@ export interface Product {
   hoverImage?: string;
   images?: string[];
   category: string;
+  category_id?: string;
   subCategory?: string;
   brand: string;
   isFlashSale?: boolean;
