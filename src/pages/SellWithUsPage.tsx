@@ -74,7 +74,7 @@ export const SellWithUsPage: React.FC = () => {
         <div className="relative rounded-3xl overflow-hidden bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 p-8 sm:p-12 text-white mb-10 shadow-lg">
           <div className="max-w-2xl">
             <span className="inline-block bg-[#FF2B74] text-white text-[11px] font-black uppercase tracking-wider px-3 py-1 rounded-full mb-3">
-              Cart App Seller Central
+              Kalkerdeal Seller Central
             </span>
             <h1 className="text-2xl sm:text-4xl font-black leading-tight mb-3">
               Sell to Millions of Shoppers Across Bangladesh
@@ -292,7 +292,7 @@ export const SellWithUsPage: React.FC = () => {
               </button>
 
               <p className="text-[11px] text-slate-400 text-center">
-                By submitting, you agree to Cart App's Seller Terms of Service & Privacy Policy.
+                By submitting, you agree to Kalkerdeal's Seller Terms of Service & Privacy Policy.
               </p>
             </form>
           </div>

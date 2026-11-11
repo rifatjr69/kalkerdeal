@@ -26,6 +26,8 @@ export const CheckoutPage: React.FC = () => {
     nagadNumber,
     insideDhakaCharge,
     outsideDhakaCharge,
+    removeVoucher,
+    clearCart,
     refreshDeliveryZones,
     refreshSettings
   } = useStore();
@@ -95,7 +97,7 @@ export const CheckoutPage: React.FC = () => {
 
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [placedOrder, setPlacedOrder] = useState<Order | null>(null);
+  const [placedOrders, setPlacedOrders] = useState<Order[]>([]);
 
   // Active delivery fee calculation based on Admin panel charges
   const selectedZoneCharge = deliveryLocation === 'inside' ? insideCharge : outsideCharge;
@@ -143,29 +145,35 @@ export const CheckoutPage: React.FC = () => {
     setIsSubmitting(true);
 
     setTimeout(() => {
-      const order = createOrder({
-        customerName: fullName.trim(),
-        phone: phoneNumber.trim(),
-        address: paymentMethod !== 'cod' ? `${streetAddress.trim()} [TrxID: ${trxId.trim().toUpperCase()}]` : streetAddress.trim(),
-        district: selectedZoneName,
-        deliveryMethod: paymentMethod,
-        deliveryCharge,
-        subtotal: cartSubtotal,
-        discount: totalDiscount,
-        total: grandTotal,
-        couponCode: activeVoucher?.code,
-        items: cart.map((item) => ({
-          productId: item.product.id,
-          title: item.product.title,
-          price: item.product.price,
-          quantity: item.quantity,
-          image: item.product.image,
-          variant: item.selectedSize || item.selectedColor
-        }))
-      });
+      const newOrders = cart.map((item, index) =>
+        createOrder({
+          customerName: fullName.trim(),
+          phone: phoneNumber.trim(),
+          address: paymentMethod !== 'cod' ? `${streetAddress.trim()} [TrxID: ${trxId.trim().toUpperCase()}]` : streetAddress.trim(),
+          district: selectedZoneName,
+          deliveryMethod: paymentMethod,
+          deliveryCharge: index === 0 ? deliveryCharge : 0, // Apply charge to the first order only
+          subtotal: item.product.price * item.quantity,
+          discount: index === 0 ? totalDiscount : 0, // Apply discount to the first order
+          total: (item.product.price * item.quantity) + (index === 0 ? deliveryCharge - totalDiscount : 0),
+          couponCode: index === 0 ? activeVoucher?.code : undefined,
+          items: [
+            {
+              productId: item.product.id,
+              title: item.product.title,
+              price: item.product.price,
+              quantity: item.quantity,
+              image: item.product.image,
+              variant: item.selectedSize || item.selectedColor
+            }
+          ]
+        })
+      );
 
+      clearCart();
+      removeVoucher();
       setIsSubmitting(false);
-      setPlacedOrder(order);
+      setPlacedOrders(newOrders);
     }, 700);
   };
 
@@ -203,7 +211,7 @@ export const CheckoutPage: React.FC = () => {
           </p>
         </div>
 
-        {cart.length === 0 && !placedOrder ? (
+        {cart.length === 0 && placedOrders.length === 0 ? (
           <div className="bg-white p-8 sm:p-12 rounded-3xl border border-slate-200 text-center max-w-md mx-auto shadow-sm">
             <ShoppingBag className="w-12 h-12 text-slate-300 mx-auto mb-3" />
             <h2 className="text-lg font-bold text-slate-800">আপনার কার্ট খালি</h2>
@@ -633,7 +641,7 @@ export const CheckoutPage: React.FC = () => {
       </div>
 
       {/* Order Placed Success Confirmation Modal */}
-      {placedOrder && (
+      {placedOrders.length > 0 && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
           <div className="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl animate-in fade-in zoom-in-95 duration-200">
             <div className="w-16 h-16 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto mb-4">
@@ -645,58 +653,43 @@ export const CheckoutPage: React.FC = () => {
                 অর্ডার সফলভাবে সম্পন্ন হয়েছে!
               </h2>
               <p className="text-xs text-slate-500 mt-1">
-                আপনার অর্ডারের জন্য ধন্যবাদ। আমাদের প্রতিনিধি শীঘ্রই যোগাযোগ করবেন।
+                আপনার {placedOrders.length} টি প্রোডাক্টের জন্য {placedOrders.length} টি পৃথক অর্ডার তৈরি করা হয়েছে।
               </p>
             </div>
 
-            {/* Receipt Summary */}
-            <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200 space-y-2 text-xs text-slate-700 mb-6">
-              <div className="flex justify-between pb-2 border-b border-slate-200">
-                <span className="text-slate-500">অর্ডার নম্বর (Order ID)</span>
-                <span className="font-extrabold text-[#00A5A8] font-mono">
-                  {placedOrder.orderNumber}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-500">কাস্টমার</span>
-                <span className="font-semibold">{placedOrder.customerName}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-500">মোবাইল</span>
-                <span className="font-semibold">{placedOrder.phone}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-500">ডেলিভারি ঠিকানা</span>
-                <span className="font-semibold text-right max-w-[200px] truncate">
-                  {placedOrder.address} ({placedOrder.district})
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-500">পেমেন্ট মেথড</span>
-                <span className="font-bold text-emerald-700 uppercase">Cash on Delivery</span>
-              </div>
-              <div className="flex justify-between pt-2 border-t border-slate-200">
-                <span className="font-bold text-slate-900">সর্বমোট প্রদেয় বিল</span>
-                <span className="font-black text-sm sm:text-base text-[#E11D48]">
-                  ৳{placedOrder.total.toLocaleString()}
-                </span>
-              </div>
+            <div className="max-h-60 overflow-y-auto space-y-3 mb-6">
+              {placedOrders.map((order) => (
+                <div key={order.id} className="bg-slate-50 rounded-2xl p-4 border border-slate-200 text-xs text-slate-700">
+                  <div className="flex justify-between pb-2 border-b border-slate-200">
+                    <span className="text-slate-500">অর্ডার নম্বর</span>
+                    <span className="font-extrabold text-[#00A5A8] font-mono">{order.orderNumber}</span>
+                  </div>
+                  <div className="flex justify-between pt-1">
+                    <span className="text-slate-500">পণ্য</span>
+                    <span className="font-semibold">{order.items[0].title}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-500">মূল্য</span>
+                    <span className="font-bold text-slate-900">৳{order.total.toLocaleString()}</span>
+                  </div>
+                </div>
+              ))}
             </div>
 
             <div className="flex flex-col sm:flex-row gap-3">
               <button
                 type="button"
-                onClick={() => navigateTo(`/track-order?orderId=${placedOrder.orderNumber}`)}
+                onClick={() => navigateTo('/my-orders')}
                 className="flex-1 py-3 px-4 rounded-xl bg-[#00A5A8] hover:bg-[#008F91] text-white text-xs font-bold transition shadow-xs"
               >
-                অর্ডার ট্র্যাক করুন
+                আমার অর্ডারসমূহ
               </button>
               <button
                 type="button"
                 onClick={() => navigateTo('/')}
                 className="flex-1 py-3 px-4 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-bold transition"
               >
-                হোম পেজে ফিরে যান
+                হোম পেজ
               </button>
             </div>
           </div>

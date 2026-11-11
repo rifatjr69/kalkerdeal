@@ -20,7 +20,7 @@ export const StaticPages: React.FC<StaticPagesProps> = ({ initialTab = 'help' })
 
   const faqs = [
     {
-      q: 'How do I place an order on Cart App?',
+      q: 'How do I place an order on Kalkerdeal?',
       a: 'Browse or search for your desired product, click "Add to Cart" or "Buy Now", review your cart, and proceed to checkout. Enter your delivery address in Bangladesh, choose Cash on Delivery or digital payment (bKash/Nagad/Card), and tap "Confirm Order". You will immediately receive an SMS confirmation with your order number.'
     },
     {
@@ -67,7 +67,7 @@ export const StaticPages: React.FC<StaticPagesProps> = ({ initialTab = 'help' })
         <div className="flex items-center gap-2 overflow-x-auto pb-3 mb-6 border-b border-slate-200">
           {[
             { id: 'help', label: 'Help Center & FAQs' },
-            { id: 'about', label: 'About Cart App' },
+            { id: 'about', label: 'About Kalkerdeal' },
             { id: 'return', label: 'Return & Refund Policy' },
             { id: 'warranty', label: 'Warranty Policy' },
             { id: 'emi', label: 'EMI Policy' },
@@ -159,13 +159,13 @@ export const StaticPages: React.FC<StaticPagesProps> = ({ initialTab = 'help' })
         {activeTab === 'about' && (
           <div className="bg-white rounded-3xl border border-slate-200/80 p-6 sm:p-10 shadow-xs space-y-6 text-xs sm:text-sm text-slate-600 leading-relaxed animate-in fade-in">
             <h1 className="text-2xl sm:text-3xl font-black text-slate-900">
-              About Cart App
+              About Kalkerdeal
             </h1>
             <p>
-              Welcome to <strong>Cart App</strong> (cartapp.demotheme.xyz), Bangladesh's premier multi-vendor e-commerce destination. We connect conscious consumers with authentic brand manufacturers, local wholesalers, and trusted retail merchants under a unified, reliable platform.
+              Welcome to <strong>Kalkerdeal</strong> (kalkerdeal.com), Bangladesh's premier multi-vendor e-commerce destination. We connect conscious consumers with authentic brand manufacturers, local wholesalers, and trusted retail merchants under a unified, reliable platform.
             </p>
             <p>
-              Headquartered in Tejgaon, Dhaka, Cart App was built from the ground up to solve the core challenges of Bangladeshi online shopping: ensuring 100% genuine products, eliminating counterfeit tech and cosmetics, offering upfront cash-on-delivery inspection, and providing same-day and next-day express logistics across all 64 districts.
+              Headquartered in Tejgaon, Dhaka, Kalkerdeal was built from the ground up to solve the core challenges of Bangladeshi online shopping: ensuring 100% genuine products, eliminating counterfeit tech and cosmetics, offering upfront cash-on-delivery inspection, and providing same-day and next-day express logistics across all 64 districts.
             </p>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4 border-t border-slate-100">
@@ -188,7 +188,7 @@ export const StaticPages: React.FC<StaticPagesProps> = ({ initialTab = 'help' })
               <div className="space-y-1.5 text-xs text-slate-600">
                 <p className="flex items-center gap-2"><MapPin className="w-4 h-4 text-[#00A5A8]" /> House 12, Road 5, Tejgaon, Dhaka-1208, Bangladesh</p>
                 <p className="flex items-center gap-2"><Phone className="w-4 h-4 text-[#00A5A8]" /> {phoneVal} (9 am - 9 pm Everyday)</p>
-                <p className="flex items-center gap-2"><Mail className="w-4 h-4 text-[#00A5A8]" /> support@cartapp.com.bd</p>
+                <p className="flex items-center gap-2"><Mail className="w-4 h-4 text-[#00A5A8]" /> support@kalkerdeal.com</p>
               </div>
             </div>
           </div>
@@ -198,7 +198,7 @@ export const StaticPages: React.FC<StaticPagesProps> = ({ initialTab = 'help' })
         {activeTab === 'return' && (
           <div className="bg-white rounded-3xl border border-slate-200/80 p-6 sm:p-10 shadow-xs space-y-5 text-xs sm:text-sm text-slate-600 leading-relaxed animate-in fade-in">
             <h1 className="text-2xl font-black text-slate-900">Return & Refund Policy</h1>
-            <p>At Cart App, we want you to shop with total peace of mind. Every product purchased through our website or mobile app is covered under our <strong>7-Day Easy Return & Replacement Guarantee</strong>.</p>
+            <p>At Kalkerdeal, we want you to shop with total peace of mind. Every product purchased through our website or mobile app is covered under our <strong>7-Day Easy Return & Replacement Guarantee</strong>.</p>
             <h3 className="font-bold text-slate-900 text-sm">Conditions for Returns:</h3>
             <ul className="list-disc pl-5 space-y-1.5 text-xs">
               <li>The item must be unused, in the same condition received, and in its original retail packaging.</li>
@@ -214,9 +214,9 @@ export const StaticPages: React.FC<StaticPagesProps> = ({ initialTab = 'help' })
         {activeTab === 'warranty' && (
           <div className="bg-white rounded-3xl border border-slate-200/80 p-6 sm:p-10 shadow-xs space-y-5 text-xs sm:text-sm text-slate-600 leading-relaxed animate-in fade-in">
             <h1 className="text-2xl font-black text-slate-900">Warranty Policy</h1>
-            <p>All electronics, home appliances, and certified gadgets on Cart App carry official manufacturer or vendor brand warranty. Warranty terms (e.g. 1 Year Official Brand Warranty, 6 Months Service Warranty) are explicitly stated on each product's specification page.</p>
+            <p>All electronics, home appliances, and certified gadgets on Kalkerdeal carry official manufacturer or vendor brand warranty. Warranty terms (e.g. 1 Year Official Brand Warranty, 6 Months Service Warranty) are explicitly stated on each product's specification page.</p>
             <h3 className="font-bold text-slate-900 text-sm">How to Claim Warranty:</h3>
-            <p>Keep your Cart App invoice or order number. You can either visit any authorized brand service center in Bangladesh or contact Cart App Customer Support to schedule a courier pickup for warranty servicing.</p>
+            <p>Keep your Kalkerdeal invoice or order number. You can either visit any authorized brand service center in Bangladesh or contact Kalkerdeal Customer Support to schedule a courier pickup for warranty servicing.</p>
           </div>
         )}
 
@@ -240,7 +240,7 @@ export const StaticPages: React.FC<StaticPagesProps> = ({ initialTab = 'help' })
         {activeTab === 'privacy' && (
           <div className="bg-white rounded-3xl border border-slate-200/80 p-6 sm:p-10 shadow-xs space-y-5 text-xs sm:text-sm text-slate-600 leading-relaxed animate-in fade-in">
             <h1 className="text-2xl font-black text-slate-900">Privacy Policy</h1>
-            <p>Cart App is dedicated to safeguarding your personal data and privacy. We only collect the information necessary to fulfill your orders, process payments, and improve your shopping experience.</p>
+            <p>Kalkerdeal is dedicated to safeguarding your personal data and privacy. We only collect the information necessary to fulfill your orders, process payments, and improve your shopping experience.</p>
             <p>We never sell, rent, or disclose your personal details to third-party marketing companies. All payment data is handled through SSL-encrypted, PCI-DSS compliant financial gateways.</p>
           </div>
         )}
@@ -249,8 +249,8 @@ export const StaticPages: React.FC<StaticPagesProps> = ({ initialTab = 'help' })
         {activeTab === 'terms' && (
           <div className="bg-white rounded-3xl border border-slate-200/80 p-6 sm:p-10 shadow-xs space-y-5 text-xs sm:text-sm text-slate-600 leading-relaxed animate-in fade-in">
             <h1 className="text-2xl font-black text-slate-900">Terms & Conditions</h1>
-            <p>By accessing or purchasing from Cart App, you agree to comply with our general user terms, order placement rules, and fair usage guidelines.</p>
-            <p>All prices listed on the platform are in Bangladeshi Taka (৳) and include applicable government taxes. Cart App reserves the right to cancel orders in case of stock unavailability, pricing errors, or suspected fraudulent activity.</p>
+            <p>By accessing or purchasing from Kalkerdeal, you agree to comply with our general user terms, order placement rules, and fair usage guidelines.</p>
+            <p>All prices listed on the platform are in Bangladeshi Taka (৳) and include applicable government taxes. Kalkerdeal reserves the right to cancel orders in case of stock unavailability, pricing errors, or suspected fraudulent activity.</p>
           </div>
         )}
       </div>

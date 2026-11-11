@@ -23,6 +23,7 @@ import { ProductDetailPage } from './pages/ProductDetailPage';
 import { CartPage } from './pages/CartPage';
 import { CheckoutPage } from './pages/CheckoutPage';
 import { WishlistPage } from './pages/WishlistPage';
+import { MyOrdersPage } from './pages/MyOrdersPage';
 import { OrderTrackingPage } from './pages/OrderTrackingPage';
 import { SellWithUsPage } from './pages/SellWithUsPage';
 import { StaticPages } from './pages/StaticPages';
@@ -200,7 +201,12 @@ const AppContent: React.FC = () => {
       return <WishlistPage />;
     }
 
-    // 6. Track Order Page
+    // 6. My Orders Page
+    if (currentRoute === '/my-orders') {
+      return <MyOrdersPage />;
+    }
+
+    // 7. Track Order Page
     if (currentRoute === '/track-order' || currentRoute === '/tracking') {
       return <OrderTrackingPage />;
     }

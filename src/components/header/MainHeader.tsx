@@ -308,7 +308,7 @@ export const MainHeader: React.FC = () => {
                     type="button"
                     onClick={() => {
                       setAccountMenuOpen(false);
-                      navigateTo('/track-order');
+                      navigateTo('/my-orders');
                     }}
                     className="w-full text-left px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 rounded-lg transition"
                   >

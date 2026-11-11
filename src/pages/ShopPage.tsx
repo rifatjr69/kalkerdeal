@@ -115,7 +115,7 @@ export const ShopPage: React.FC = () => {
   ]);
 
   const resetAllFilters = () => {
-    setSelectedCategory('');
+    setSelectedCategoryId('');
     setSelectedSubCategory('');
     setSelectedBrands([]);
     setPriceRange([0, maxAvailablePrice]);
@@ -160,7 +160,7 @@ export const ShopPage: React.FC = () => {
           <button
             type="button"
             onClick={() => {
-              setSelectedCategory('');
+              setSelectedCategoryId('');
               setSelectedSubCategory('');
               navigateTo('/shop');
             }}
@@ -412,7 +412,7 @@ export const ShopPage: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => {
-                    setSelectedCategory('');
+                    setSelectedCategoryId('');
                     setSelectedSubCategory('');
                   }}
                   className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs transition text-left ${
@@ -695,7 +695,7 @@ export const ShopPage: React.FC = () => {
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs text-slate-800 focus:outline-none"
                 >
                   <option value="">All Categories</option>
-                  {CATEGORIES.map((c) => (
+                  {categories.map((c) => (
                     <option key={c.id} value={c.slug}>
                       {c.name}
                     </option>

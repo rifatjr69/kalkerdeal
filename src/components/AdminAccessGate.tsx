@@ -69,7 +69,7 @@ WHERE email = '${targetEmail}';`;
             </div>
             <div>
               <h1 className="text-xl sm:text-2xl font-black tracking-tight">অ্যাডমিন প্যানেল এক্সেস</h1>
-              <p className="text-xs text-purple-200">Cart App Administration Portal & Role Verification</p>
+              <p className="text-xs text-purple-200">Kalkerdeal Administration Portal & Role Verification</p>
             </div>
           </div>
         </div>

@@ -140,7 +140,7 @@ CREATE TABLE IF NOT EXISTS public.products (
   vendor_id UUID REFERENCES public.vendors(id) ON DELETE SET NULL,
   category_slug TEXT NOT NULL,
   sub_category_slug TEXT,
-  brand_name TEXT DEFAULT 'Cart App',
+  brand_name TEXT DEFAULT 'Kalkerdeal',
   price NUMERIC(10, 2) NOT NULL,
   old_price NUMERIC(10, 2),
   discount_percent INT DEFAULT 0,
@@ -444,10 +444,10 @@ DROP POLICY IF EXISTS "Users manage own wishlist" ON public.wishlists;
 CREATE POLICY "Users manage own wishlist" ON public.wishlists FOR ALL USING (auth.uid() = user_id);
 
 -- ==============================================================================
--- 21. SEED DATA (Pre-populated for Cart App)
+-- 21. SEED DATA (Pre-populated for Kalkerdeal)
 -- ==============================================================================
 
--- 21.1 Categories (Matching 14 Cart App Categories)
+-- 21.1 Categories (Matching 14 Kalkerdeal Categories)
 INSERT INTO public.categories (name, name_bn, slug, icon_name, sort_order) VALUES
 ('Automotives & Motorbikes', 'মোটরবাইক ও অটোমোটিভ', 'automotives-motorbikes', 'Car', 1),
 ('Computers & Laptops', 'কম্পিউটার ও ল্যাপটপ', 'computers-laptops', 'Laptop', 2),

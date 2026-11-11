@@ -175,7 +175,7 @@ export const AuthModal: React.FC = () => {
             </button>
 
             <div className="text-center pt-2 text-xs text-slate-500">
-              New to Cart App?{' '}
+              New to Kalkerdeal?{' '}
               <button
                 type="button"
                 onClick={() => openAuth('register')}

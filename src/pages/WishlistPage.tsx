@@ -41,7 +41,7 @@ export const WishlistPage: React.FC = () => {
               </span>
             </h1>
             <p className="text-xs sm:text-sm text-slate-500 mt-1">
-              Your saved favorite products across Cart App
+              Your saved favorite products across Kalkerdeal
             </p>
           </div>
 

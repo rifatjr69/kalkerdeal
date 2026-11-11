@@ -59,6 +59,7 @@ interface StoreContextType {
   createOrder: (orderData: Omit<Order, 'id' | 'orderNumber' | 'createdAt' | 'status'>) => Order;
   updateOrder?: (orderIdOrNumber: string, updates: Partial<Order>) => void;
   getOrderById: (orderNumber: string) => Order | undefined;
+  deleteOrder: (orderId: string) => Promise<void>;
 
   // User & Auth
   user: User | null;
@@ -243,7 +244,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             category: item.category || 'general',
             category_id: item.category_id,
             subCategory: item.subcategory || item.subcategory_id,
-            brand: item.brand_name || 'Cart App',
+            brand: item.brand_name || 'Kalkerdeal',
             isFlashSale: Boolean(item.is_flash_sale),
             isFeatured: Boolean(item.is_featured),
             isLatestDrop: Boolean(item.is_latest_drop),
@@ -748,8 +749,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     // 1. Immediately update local state & localStorage for responsive UX
     setOrders((prev) => [newOrder, ...prev]);
-    clearCart();
-    setActiveVoucher(null);
 
     // 2. Insert into Supabase tables asynchronously
     (async () => {
@@ -838,6 +837,21 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         o.orderNumber.toLowerCase() === orderNumber.trim().toLowerCase() ||
         o.phone === orderNumber.trim()
     );
+  };
+  const deleteOrder = async (orderId: string) => {
+    try {
+      // Delete dependencies first
+      await supabase.from('order_items').delete().eq('order_id', orderId);
+      await supabase.from('order_trackings').delete().eq('order_id', orderId);
+      
+      const { error } = await supabase.from('orders').delete().eq('id', orderId);
+      if (error) throw error;
+      
+      setOrders((prev) => prev.filter((o) => o.id !== orderId));
+    } catch (err) {
+      console.error('Failed to delete order:', err);
+      throw err;
+    }
   };
 
   // User Auth with Supabase
@@ -1310,6 +1324,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         createOrder,
         updateOrder,
         getOrderById,
+        deleteOrder,
         user,
         isAdmin,
         setAdminStatus,
