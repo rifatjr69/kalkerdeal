@@ -1,10 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { ChevronLeft, ChevronRight, Sparkles } from 'lucide-react';
 import { useStore } from '../../context/StoreContext';
 
 export const WebsiteBannerSlider: React.FC = () => {
   const { banners, navigateTo, refreshBanners } = useStore();
   const [currentIndex, setCurrentIndex] = useState(0);
+  const touchStartX = useRef<number | null>(null);
+  const touchEndX = useRef<number | null>(null);
 
   useEffect(() => {
     refreshBanners();
@@ -50,6 +52,31 @@ export const WebsiteBannerSlider: React.FC = () => {
     setCurrentIndex((prev) => (prev + 1) % displayBanners.length);
   };
 
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartX.current = e.targetTouches[0].clientX;
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    touchEndX.current = e.targetTouches[0].clientX;
+  };
+
+  const handleTouchEnd = () => {
+    if (!touchStartX.current || !touchEndX.current) return;
+    const distance = touchStartX.current - touchEndX.current;
+    const minSwipeDistance = 50;
+
+    if (distance > minSwipeDistance) {
+      // Swiped Left -> Next Banner
+      setCurrentIndex((prev) => (prev + 1) % displayBanners.length);
+    } else if (distance < -minSwipeDistance) {
+      // Swiped Right -> Prev Banner
+      setCurrentIndex((prev) => (prev - 1 + displayBanners.length) % displayBanners.length);
+    }
+
+    touchStartX.current = null;
+    touchEndX.current = null;
+  };
+
   const handleBannerClick = (linkUrl?: string) => {
     if (!linkUrl) return;
     if (linkUrl.startsWith('http://') || linkUrl.startsWith('https://')) {
@@ -68,7 +95,10 @@ export const WebsiteBannerSlider: React.FC = () => {
       <div className="max-w-7xl mx-auto px-3 sm:px-4">
         <div
           onClick={() => handleBannerClick(currentBanner.link_url)}
-          className={`relative w-full rounded-2xl sm:rounded-3xl overflow-hidden shadow-sm hover:shadow-md border border-slate-200/80 bg-slate-900 group transition-all duration-300 ${
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+          className={`relative w-full rounded-2xl sm:rounded-3xl overflow-hidden shadow-sm hover:shadow-md border border-slate-200/80 bg-slate-900 group transition-all duration-300 select-none ${
             currentBanner.link_url ? 'cursor-pointer' : ''
           }`}
         >
