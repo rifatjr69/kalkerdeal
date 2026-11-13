@@ -599,7 +599,7 @@ CREATE POLICY "Public insert orders" ON public.orders FOR INSERT WITH CHECK (tru
 DROP POLICY IF EXISTS "Public read orders" ON public.orders;
 CREATE POLICY "Public read orders" ON public.orders FOR SELECT USING (true);
 DROP POLICY IF EXISTS "Allow update orders" ON public.orders;
-CREATE POLICY "Allow update orders" ON public.orders FOR UPDATE USING (true);
+CREATE POLICY "Allow update orders" ON public.orders FOR UPDATE USING (true) WITH CHECK (true);
 DROP POLICY IF EXISTS "Allow delete orders" ON public.orders;
 CREATE POLICY "Allow delete orders" ON public.orders FOR DELETE USING (true);
 
@@ -607,6 +607,8 @@ DROP POLICY IF EXISTS "Public insert order items" ON public.order_items;
 CREATE POLICY "Public insert order items" ON public.order_items FOR INSERT WITH CHECK (true);
 DROP POLICY IF EXISTS "Public read order items" ON public.order_items;
 CREATE POLICY "Public read order items" ON public.order_items FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Allow update order items" ON public.order_items;
+CREATE POLICY "Allow update order items" ON public.order_items FOR UPDATE USING (true) WITH CHECK (true);
 DROP POLICY IF EXISTS "Allow delete order items" ON public.order_items;
 CREATE POLICY "Allow delete order items" ON public.order_items FOR DELETE USING (true);
 
@@ -2066,7 +2068,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           delivery_zone: lo.district || lo.delivery_zone,
           delivery_charge: lo.deliveryCharge || lo.delivery_charge,
           total: lo.total,
-          status: lo.status || 'pending',
+          status: String(lo.status || 'pending').toLowerCase().trim(),
           created_at: lo.createdAt || lo.created_at,
           items: lo.items || []
         });
@@ -2090,7 +2092,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         delivery_zone: so.delivery_zone || so.district || existing.delivery_zone,
         delivery_charge: so.delivery_charge ?? existing.delivery_charge,
         total: so.total ?? existing.total,
-        status: so.status || existing.status || 'pending',
+        status: String(so.status || existing.status || 'pending').toLowerCase().trim(),
         created_at: so.created_at || existing.created_at,
         items: combinedItems
       });
@@ -2807,9 +2809,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
   const filteredOrders = useMemo(() => {
     const q = orderQuery.trim().toLowerCase();
-    return orders.filter((o) =>
-      (orderStatus === 'all' || (o.status || 'pending') === orderStatus) &&
-      (!q || [o.order_number, o.customer_name, o.phone, o.address].some((v) => (v || '').toLowerCase().includes(q))));
+    return orders.filter((o) => {
+      const st = String(o.status || 'pending').toLowerCase().trim();
+      const matchesTab =
+        orderStatus === 'all'
+          ? (q ? true : st === 'pending')
+          : st === orderStatus;
+      return matchesTab &&
+        (!q || [o.order_number, o.customer_name, o.phone, o.address].some((v) => (v || '').toLowerCase().includes(q)));
+    });
   }, [orders, orderQuery, orderStatus]);
 
   const customers = useMemo(() => {
@@ -2830,45 +2838,163 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   }, [orders, reportFrom, reportTo]);
 
   /* ------------------------------ Actions ------------------------------ */
-  const updateStatus = async (orderOrId: any, status: string) => {
-    const orderObj = typeof orderOrId === 'object' && orderOrId ? orderOrId : orders.find((o) => o.id === orderOrId || o.order_number === orderOrId);
+  const syncOrderToLocalStorage = (matchId: string, matchNum: string, updates: Record<string, any>, fallbackOrder?: any) => {
+    try {
+      const local = loadLS<any[]>('cartapp_orders', []);
+      let matched = false;
+      const updatedLocal = local.map((lo) => {
+        const isMatch =
+          (matchId && lo.id === matchId) ||
+          (matchNum && (lo.orderNumber === matchNum || lo.order_number === matchNum));
+        if (isMatch) {
+          matched = true;
+          return { ...lo, ...updates };
+        }
+        return lo;
+      });
+      if (!matched && fallbackOrder) {
+        updatedLocal.unshift({
+          ...fallbackOrder,
+          ...updates,
+          id: matchId || matchNum,
+          orderNumber: matchNum || matchId,
+          order_number: matchNum || matchId,
+        });
+      }
+      saveLS('cartapp_orders', updatedLocal);
+      window.dispatchEvent(new Event('cartapp_orders_updated'));
+    } catch { /* ignore */ }
+  };
+
+  const updateStatus = async (orderOrId: any, rawStatus: string) => {
+    const nextStatus = String(rawStatus || 'pending').toLowerCase().trim();
+    const orderObj = typeof orderOrId === 'object' && orderOrId
+      ? orderOrId
+      : orders.find((o) => o.id === orderOrId || o.order_number === orderOrId);
     const ordId = orderObj?.id || (typeof orderOrId === 'string' ? orderOrId : '');
     const ordNum = orderObj?.order_number || ordId;
+    const prevStatus = String(orderObj?.status || 'pending').toLowerCase().trim();
 
-    // 1. Update React state
+    if (!ordId && !ordNum) return;
+
+    // 1. Optimistically update React state so the order immediately moves out of All / current tab into the target status section
     setOrders((prev) =>
       prev.map((o) =>
         (ordId && o.id === ordId) || (ordNum && o.order_number === ordNum)
-          ? { ...o, status }
+          ? { ...o, status: nextStatus }
           : o
       )
     );
 
-    // 2. Update localStorage cartapp_orders
-    try {
-      const local = loadLS<any[]>('cartapp_orders', []);
-      const updatedLocal = local.map((lo) => {
-        if ((ordId && lo.id === ordId) || (ordNum && (lo.orderNumber === ordNum || lo.order_number === ordNum))) {
-          return { ...lo, status };
-        }
-        return lo;
-      });
-      saveLS('cartapp_orders', updatedLocal);
-      window.dispatchEvent(new Event('cartapp_orders_updated'));
-    } catch {}
+    // 2. Sync to Supabase and verify rows actually updated
+    let dbUpdated = false;
+    let dbErrorMsg = '';
 
-    // 3. Update Supabase
     try {
-      if (ordNum) {
-        await supabase.from('orders').update({ status }).eq('order_number', ordNum);
-      }
       if (ordId && isValidUuid(ordId)) {
-        await supabase.from('orders').update({ status }).eq('id', ordId);
+        const { data, error } = await supabase
+          .from('orders')
+          .update({ status: nextStatus })
+          .eq('id', ordId)
+          .select('id, order_number, status');
+
+        if (error) {
+          dbErrorMsg = error.message || 'Database update failed';
+        } else if (data && data.length > 0) {
+          dbUpdated = true;
+        }
       }
-    } catch (e) {
-      console.warn('Status update db sync error:', e);
+
+      if (!dbUpdated && !dbErrorMsg && ordNum && ordNum !== ordId) {
+        const { data, error } = await supabase
+          .from('orders')
+          .update({ status: nextStatus })
+          .eq('order_number', ordNum)
+          .select('id, order_number, status');
+
+        if (error) {
+          dbErrorMsg = error.message || 'Database update failed';
+        } else if (data && data.length > 0) {
+          dbUpdated = true;
+        }
+      }
+
+      // If 0 rows updated without error, check whether row exists in Supabase (RLS block vs missing row)
+      if (!dbUpdated && !dbErrorMsg) {
+        let existingRow: any = null;
+        if (ordId && isValidUuid(ordId)) {
+          const { data } = await supabase.from('orders').select('id').eq('id', ordId).maybeSingle();
+          existingRow = data;
+        }
+        if (!existingRow && ordNum) {
+          const { data } = await supabase.from('orders').select('id').eq('order_number', ordNum).maybeSingle();
+          existingRow = data;
+        }
+
+        if (existingRow) {
+          dbErrorMsg = 'Supabase UPDATE অনুমোদিত নয় (orders টেবিলে UPDATE RLS পলিসি চালু করুন)';
+        } else if (orderObj) {
+          // Order existed only in localStorage -> persist it to Supabase now
+          const chargeNum = Number(orderObj.delivery_charge ?? orderObj.deliveryCharge ?? 60);
+          const totalNum = Number(orderObj.total ?? 0);
+          const insertPayload: Record<string, any> = {
+            order_number: ordNum,
+            customer_name: orderObj.customer_name || orderObj.customerName || 'Customer',
+            phone: orderObj.phone || '',
+            address: orderObj.address || '',
+            delivery_zone: orderObj.delivery_zone || orderObj.district || 'ঢাকার ভিতরে',
+            district: orderObj.delivery_zone || orderObj.district || 'ঢাকার ভিতরে',
+            delivery_charge: chargeNum,
+            subtotal: Number(orderObj.subtotal ?? Math.max(0, totalNum - chargeNum)),
+            discount: Number(orderObj.discount ?? 0),
+            total: totalNum,
+            payment_method: orderObj.payment_method || 'COD',
+            delivery_method: (orderObj.payment_method || 'cod').toLowerCase(),
+            status: nextStatus,
+            created_at: orderObj.created_at || orderObj.createdAt || new Date().toISOString()
+          };
+          if (ordId && isValidUuid(ordId)) insertPayload.id = ordId;
+
+          const { data: upserted, error: upsertErr } = await writeWithColumnFallback(
+            (body) => supabase.from('orders').upsert([body], { onConflict: 'order_number' }).select('id, order_number, status'),
+            insertPayload
+          );
+          if (upsertErr) {
+            dbErrorMsg = upsertErr.message || 'Database insert failed';
+          } else if (upserted && upserted.length > 0) {
+            dbUpdated = true;
+          }
+        }
+      }
+    } catch (e: any) {
+      dbErrorMsg = e?.message || 'Network/Database error';
     }
-    notify('অর্ডারের স্ট্যাটাস আপডেট হয়েছে: ' + status);
+
+    if (dbErrorMsg) {
+      // Revert optimistic state on DB failure so UI never misleads the user
+      setOrders((prev) =>
+        prev.map((o) =>
+          (ordId && o.id === ordId) || (ordNum && o.order_number === ordNum)
+            ? { ...o, status: prevStatus }
+            : o
+        )
+      );
+      console.error('Order status update failed:', dbErrorMsg);
+      notify(`স্ট্যাটাস সেভ হয়নি: ${dbErrorMsg}`, false);
+      return;
+    }
+
+    // 3. Persist updated status to localStorage too (for My Orders & Track Order)
+    syncOrderToLocalStorage(ordId, ordNum, { status: nextStatus }, orderObj);
+
+    const statusLabelMap: Record<string, string> = {
+      pending: 'Pending',
+      confirmed: 'Confirmed',
+      shipped: 'Shipped',
+      delivered: 'Delivered',
+      cancelled: 'Cancelled',
+    };
+    notify(`অর্ডারটি ${statusLabelMap[nextStatus] || nextStatus} সেকশনে সেভ হয়েছে`);
   };
 
   const handleMultipleImageUpload = async (files: FileList | File[]) => {
@@ -3148,27 +3274,46 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const confirmDeleteOrder = async () => {
     if (!deleteConfirmOrder) return;
     const id = deleteConfirmOrder.id;
-    if (!id) {
+    const ordNum = deleteConfirmOrder.order_number;
+    if (!id && !ordNum) {
       setDeleteConfirmOrder(null);
       return;
     }
     setDeletingOrder(true);
     try {
-      try { await supabase.from('order_items').delete().eq('order_id', id); } catch { /* ignore */ }
-      if (isValidUuid(id)) {
+      if (id && isValidUuid(id)) {
+        try { await supabase.from('order_items').delete().eq('order_id', id); } catch { /* ignore */ }
         const { error } = await supabase.from('orders').delete().eq('id', id);
         if (error) {
           console.warn('Supabase order delete warning:', error.message);
         }
+      } else if (ordNum) {
+        const { error } = await supabase.from('orders').delete().eq('order_number', ordNum);
+        if (error) {
+          console.warn('Supabase order delete warning:', error.message);
+        }
       }
-      setOrders((prev) => prev.filter((o) => o.id !== id));
+
+      // Sync deletion to localStorage
+      try {
+        const local = loadLS<any[]>('cartapp_orders', []);
+        const filteredLocal = local.filter((lo) => !(
+          (id && lo.id === id) ||
+          (ordNum && (lo.orderNumber === ordNum || lo.order_number === ordNum))
+        ));
+        saveLS('cartapp_orders', filteredLocal);
+        window.dispatchEvent(new Event('cartapp_orders_updated'));
+      } catch { /* ignore */ }
+
+      setOrders((prev) => prev.filter((o) => !(
+        (id && o.id === id) ||
+        (ordNum && o.order_number === ordNum)
+      )));
       if (expanded === id) setExpanded(null);
       notify('অর্ডার সফলভাবে ডিলিট হয়েছে', true);
     } catch (err: any) {
       console.warn('Error deleting order:', err);
-      setOrders((prev) => prev.filter((o) => o.id !== id));
-      if (expanded === id) setExpanded(null);
-      notify('অর্ডার সফলভাবে ডিলিট হয়েছে', true);
+      notify('অর্ডার ডিলিট করা যায়নি', false);
     } finally {
       setDeletingOrder(false);
       setDeleteConfirmOrder(null);
@@ -3184,7 +3329,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       address: o.address || '',
       delivery_zone: o.delivery_zone || (o.address?.includes('বাইরে') ? 'ঢাকার বাইরে' : 'ঢাকার ভিতরে'),
       delivery_charge: String(o.delivery_charge !== undefined ? o.delivery_charge : (o.delivery_zone?.includes('বাইরে') ? 130 : 60)),
-      status: o.status || 'pending',
+      status: String(o.status || 'pending').toLowerCase().trim(),
       payment_method: o.payment_method || 'cod',
       total: String(o.total || 0)
     });
@@ -3198,19 +3343,22 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     const chargeNum = parseFloat(orderEditForm.delivery_charge) || 0;
     const totalNum = parseFloat(orderEditForm.total) || 0;
     const orderNum = editingOrder.order_number || editingOrder.id || '';
+    const nextStatus = String(orderEditForm.status || 'pending').toLowerCase().trim();
 
-    // Database payload (ONLY valid columns in Supabase orders table)
+    // Database payload (adaptable via writeWithColumnFallback)
     const dbPayload: Record<string, any> = {
       order_number: orderNum,
       customer_name: orderEditForm.customer_name.trim(),
       phone: orderEditForm.phone.trim(),
       address: orderEditForm.address.trim(),
       delivery_zone: orderEditForm.delivery_zone,
+      district: orderEditForm.delivery_zone,
       delivery_charge: chargeNum,
       subtotal: Math.max(0, totalNum - chargeNum),
       total: totalNum,
-      status: orderEditForm.status,
-      payment_method: orderEditForm.payment_method
+      status: nextStatus,
+      payment_method: orderEditForm.payment_method,
+      delivery_method: (orderEditForm.payment_method || 'cod').toLowerCase()
     };
 
     const localUpdatedFields = {
@@ -3223,12 +3371,55 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       delivery_charge: chargeNum,
       deliveryCharge: chargeNum,
       total: totalNum,
-      status: orderEditForm.status,
+      status: nextStatus,
       payment_method: orderEditForm.payment_method,
       deliveryMethod: (orderEditForm.payment_method || '').toLowerCase().includes('bkash') ? 'bkash' : 'cod'
     };
 
-    // 1. Update in local state
+    // 1. Update in Supabase database first and verify
+    let dbSaved = false;
+    let dbErrMsg = '';
+    try {
+      if (editingOrder.id && isValidUuid(editingOrder.id)) {
+        const { order_number: _omit, ...updateOnly } = dbPayload;
+        const { data, error } = await writeWithColumnFallback(
+          (body) => supabase.from('orders').update(body).eq('id', editingOrder.id).select('id, order_number, status'),
+          updateOnly
+        );
+        if (error) dbErrMsg = error.message;
+        else if (data && data.length > 0) dbSaved = true;
+      }
+
+      if (!dbSaved && !dbErrMsg && orderNum) {
+        const { order_number: _omit, ...updateOnly } = dbPayload;
+        const { data, error } = await writeWithColumnFallback(
+          (body) => supabase.from('orders').update(body).eq('order_number', orderNum).select('id, order_number, status'),
+          updateOnly
+        );
+        if (error) dbErrMsg = error.message;
+        else if (data && data.length > 0) dbSaved = true;
+      }
+
+      if (!dbSaved && !dbErrMsg) {
+        const { data, error: upsertErr } = await writeWithColumnFallback(
+          (body) => supabase.from('orders').upsert([body], { onConflict: 'order_number' }).select('id, order_number, status'),
+          dbPayload
+        );
+        if (upsertErr) dbErrMsg = upsertErr.message;
+        else if (data && data.length > 0) dbSaved = true;
+        else dbErrMsg = 'Supabase UPDATE অনুমোদিত নয় (orders টেবিলে UPDATE RLS পলিসি চালু করুন)';
+      }
+    } catch (err: any) {
+      dbErrMsg = err?.message || 'Database update error';
+    }
+
+    if (dbErrMsg && !dbSaved) {
+      notify(`অর্ডার ডাটাবেজে সেভ হয়নি: ${dbErrMsg}`, false);
+      setOrderEditSaving(false);
+      return;
+    }
+
+    // 2. Update in local state so order moves to target status section
     setOrders((prev) =>
       prev.map((o) => {
         const isMatch =
@@ -3239,59 +3430,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       })
     );
 
-    // 2. Update in localStorage cartapp_orders
-    try {
-      const local = loadLS<any[]>('cartapp_orders', []);
-      let found = false;
-      const updatedLocal = local.map((lo) => {
-        const isMatch =
-          (editingOrder.id && lo.id === editingOrder.id) ||
-          (editingOrder.order_number && (lo.orderNumber === editingOrder.order_number || lo.order_number === editingOrder.order_number)) ||
-          (orderNum && (lo.id === orderNum || lo.orderNumber === orderNum || lo.order_number === orderNum));
-        if (isMatch) {
-          found = true;
-          return {
-            ...lo,
-            ...localUpdatedFields
-          };
-        }
-        return lo;
-      });
-
-      if (!found && orderNum) {
-        updatedLocal.unshift({
-          ...editingOrder,
-          ...localUpdatedFields,
-          id: editingOrder.id || orderNum,
-          orderNumber: orderNum,
-          order_number: orderNum
-        });
-      }
-
-      saveLS('cartapp_orders', updatedLocal);
-      window.dispatchEvent(new Event('cartapp_orders_updated'));
-    } catch (e) {
-      console.warn('LocalStorage save error:', e);
-    }
-
-    // 3. Upsert into Supabase database
-    try {
-      const { error: upsertErr } = await supabase
-        .from('orders')
-        .upsert([dbPayload], { onConflict: 'order_number' });
-
-      if (upsertErr) {
-        console.warn('Supabase upsert error, trying fallback update:', upsertErr.message);
-        if (orderNum) {
-          await supabase.from('orders').update(dbPayload).eq('order_number', orderNum);
-        }
-        if (editingOrder.id && isValidUuid(editingOrder.id)) {
-          await supabase.from('orders').update(dbPayload).eq('id', editingOrder.id);
-        }
-      }
-    } catch (err: any) {
-      console.warn('Could not update order in Supabase:', err);
-    }
+    // 3. Update in localStorage cartapp_orders
+    syncOrderToLocalStorage(editingOrder.id || '', orderNum, localUpdatedFields, editingOrder);
 
     notify('অর্ডার সফলভাবে ডাটাবেজে সংরক্ষিত হয়েছে!');
     setOrderEditSaving(false);
@@ -3923,7 +4063,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                       }`}
                     >
                       {s}
-                      {s !== 'all' && ` (${orders.filter((o) => (o.status || 'pending') === s).length})`}
+                      {` (${orders.filter((o) => String(o.status || 'pending').toLowerCase().trim() === (s === 'all' ? 'pending' : s)).length})`}
                     </button>
                   ))}
                 </div>
@@ -3935,7 +4075,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 <div className="space-y-2.5">
                   {filteredOrders.map((o, idx) => {
                     const key = o.order_number || o.id || String(idx);
-                    const st = o.status || 'pending';
+                    const st = String(o.status || 'pending').toLowerCase().trim();
                     const items = getItems(o);
                     const isExpanded = !!expandedOrders[key];
 

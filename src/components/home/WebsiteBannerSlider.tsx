@@ -119,10 +119,7 @@ export const WebsiteBannerSlider: React.FC = () => {
             {currentBanner.title && (
               <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent flex items-end p-4 sm:p-6 md:p-8">
                 <div className="max-w-xl space-y-1 sm:space-y-2">
-                  <span className="inline-flex items-center gap-1.5 bg-blue-600 text-white text-[10px] sm:text-xs font-bold px-2.5 py-0.5 sm:px-3 sm:py-1 rounded-full shadow-sm uppercase tracking-wider">
-                    <Sparkles className="w-3 h-3" />
-                    Featured Offer
-                  </span>
+                
                   <h2 className="text-base sm:text-2xl md:text-3xl font-extrabold text-white leading-tight drop-shadow-md">
                     {currentBanner.title}
                   </h2>

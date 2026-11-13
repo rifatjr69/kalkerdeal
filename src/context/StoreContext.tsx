@@ -715,20 +715,30 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           phone: o.phone,
           address: o.address,
           district: o.delivery_zone || o.district || 'ঢাকার ভিতরে',
-          deliveryMethod: (o.payment_method || 'cod').toLowerCase().includes('bkash') ? 'bkash' : 'cod',
+          deliveryMethod: (o.payment_method || o.delivery_method || 'cod').toLowerCase().includes('bkash') ? 'bkash' : 'cod',
           deliveryCharge: Number(o.delivery_charge || 60),
           subtotal: Number(o.subtotal || 0),
           discount: Number(o.discount || 0),
           total: Number(o.total || 0),
           couponCode: o.coupon_code,
-          status: o.status || 'pending',
+          status: (String(o.status || 'pending').toLowerCase().trim() as Order['status']),
           items: []
         }));
 
         setOrders((prev) => {
-          const map = new Map();
-          [...loadedOrders, ...prev].forEach((item) => map.set(item.orderNumber, item));
-          return Array.from(map.values());
+          const map = new Map<string, Order>();
+          prev.forEach((item) => map.set(item.orderNumber, item));
+          loadedOrders.forEach((item) => {
+            const existing = map.get(item.orderNumber);
+            map.set(item.orderNumber, {
+              ...existing,
+              ...item,
+              items: item.items && item.items.length > 0 ? item.items : (existing?.items || [])
+            });
+          });
+          return Array.from(map.values()).sort(
+            (a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
+          );
         });
       }
     } catch (err) {
@@ -750,7 +760,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     // 1. Immediately update local state & localStorage for responsive UX
     setOrders((prev) => [newOrder, ...prev]);
 
-    // 2. Insert into Supabase tables asynchronously
+    // 2. Insert into Supabase tables asynchronously (with column-fallback for schema variations)
     (async () => {
       try {
         const zoneStr =
@@ -765,12 +775,14 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           phone: orderData.phone,
           address: orderData.address,
           delivery_zone: zoneStr,
+          district: zoneStr,
           delivery_charge: orderData.deliveryCharge || 60,
           subtotal: orderData.subtotal || 0,
           discount: orderData.discount || 0,
           total: orderData.total || 0,
           coupon_code: orderData.couponCode || null,
           payment_method: orderData.deliveryMethod === 'cod' ? 'COD' : (orderData.deliveryMethod?.toUpperCase() || 'COD'),
+          delivery_method: orderData.deliveryMethod || 'cod',
           status: 'pending',
           created_at: new Date().toISOString()
         };
@@ -782,11 +794,29 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           dbOrderPayload.user_id = user.id;
         }
 
-        const { data: insData, error: ordErr } = await supabase
-          .from('orders')
-          .insert([dbOrderPayload])
-          .select('id')
-          .single();
+        const insertWithFallback = async (table: string, rows: Record<string, any>[], selectSingle = false) => {
+          const bodyList = rows.map((r) => ({ ...r }));
+          let res: any = selectSingle
+            ? await supabase.from(table).insert(bodyList).select('id').single()
+            : await supabase.from(table).insert(bodyList);
+          let retries = 8;
+          while (res.error && retries-- > 0) {
+            const msg: string = res.error.message || '';
+            const m = msg.match(/Could not find the '([^']+)' column/i) || msg.match(/column "([^"]+)" of relation "[^"]+" does not exist/i);
+            const col = m ? m[1] : null;
+            if (col && bodyList.some((b) => col in b)) {
+              bodyList.forEach((b) => { delete b[col]; });
+              res = selectSingle
+                ? await supabase.from(table).insert(bodyList).select('id').single()
+                : await supabase.from(table).insert(bodyList);
+            } else {
+              break;
+            }
+          }
+          return res;
+        };
+
+        const { data: insData, error: ordErr } = await insertWithFallback('orders', [dbOrderPayload], true);
 
         if (ordErr) {
           console.error('Supabase orders table insert error:', ordErr.message);
@@ -795,21 +825,24 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
           const assignedOrderId = insData?.id || newOrderId;
 
-          // Insert order items with exact valid schema
+          // Insert order items with column fallback
           if (assignedOrderId && orderData.items && orderData.items.length > 0) {
             const itemsPayload = orderData.items.map((it) => ({
               order_id: assignedOrderId,
               product_id: it.productId && it.productId.includes('-') && it.productId.length === 36 ? it.productId : null,
               product_name: it.title || 'Product',
+              title: it.title || 'Product',
               variant: it.variant || null,
               quantity: it.quantity || 1,
               unit_price: it.price || 0,
-              total: (it.price || 0) * (it.quantity || 1)
+              price: it.price || 0,
+              total: (it.price || 0) * (it.quantity || 1),
+              total_price: (it.price || 0) * (it.quantity || 1)
             }));
-            await supabase.from('order_items').insert(itemsPayload);
+            await insertWithFallback('order_items', itemsPayload, false);
           }
 
-          // Insert tracking milestone
+          // Insert tracking milestone if table exists
           try {
             await supabase.from('order_trackings').insert([
               {

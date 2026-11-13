@@ -422,11 +422,26 @@ CREATE POLICY "View order tracking" ON public.orders FOR SELECT USING (
   auth.uid() = user_id OR auth.uid() IS NULL OR order_number IS NOT NULL
 );
 
+DROP POLICY IF EXISTS "Allow update orders" ON public.orders;
+CREATE POLICY "Allow update orders" ON public.orders FOR UPDATE USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Allow delete orders" ON public.orders;
+CREATE POLICY "Allow delete orders" ON public.orders FOR DELETE USING (true);
+
 DROP POLICY IF EXISTS "View order items" ON public.order_items;
 CREATE POLICY "View order items" ON public.order_items FOR SELECT USING (true);
 
+DROP POLICY IF EXISTS "Allow update order items" ON public.order_items;
+CREATE POLICY "Allow update order items" ON public.order_items FOR UPDATE USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Allow delete order items" ON public.order_items;
+CREATE POLICY "Allow delete order items" ON public.order_items FOR DELETE USING (true);
+
 DROP POLICY IF EXISTS "View order tracking milestones" ON public.order_trackings;
 CREATE POLICY "View order tracking milestones" ON public.order_trackings FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Allow manage order tracking milestones" ON public.order_trackings;
+CREATE POLICY "Allow manage order tracking milestones" ON public.order_trackings FOR ALL USING (true) WITH CHECK (true);
 
 -- Profiles: Users can view and update their own profile
 DROP POLICY IF EXISTS "Users can view own profile" ON public.profiles;
